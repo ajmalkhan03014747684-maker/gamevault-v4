@@ -16,6 +16,9 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
+      - name: Generate missing platform files (android/ios)
+        run: flutter create --platforms=android .
+
       - name: Install dependencies
         run: flutter pub get
 
