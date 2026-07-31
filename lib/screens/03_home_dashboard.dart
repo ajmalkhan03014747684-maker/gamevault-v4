@@ -26,6 +26,9 @@ class HomeDashboardScreen extends StatefulWidget {
   final VoidCallback onSelectGameTapped;
   final VoidCallback onNotificationsTapped;
   final VoidCallback onMiniGamesTapped;
+  final VoidCallback onDailyBonusTapped;
+  final VoidCallback onMissionsTapped;
+  final VoidCallback onLeaderboardTapped;
 
   const HomeDashboardScreen({
     super.key,
@@ -33,6 +36,9 @@ class HomeDashboardScreen extends StatefulWidget {
     required this.onSelectGameTapped,
     required this.onNotificationsTapped,
     required this.onMiniGamesTapped,
+    required this.onDailyBonusTapped,
+    required this.onMissionsTapped,
+    required this.onLeaderboardTapped,
   });
 
   @override
@@ -129,10 +135,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _IconAction(icon: Icons.card_giftcard_rounded, label: 'Daily Bonus', onTap: () {}),
-                      _IconAction(icon: Icons.flag_rounded, label: 'Missions', onTap: () {}),
+                      _IconAction(icon: Icons.card_giftcard_rounded, label: 'Daily Bonus', onTap: widget.onDailyBonusTapped),
+                      _IconAction(icon: Icons.flag_rounded, label: 'Missions', onTap: widget.onMissionsTapped),
                       _IconAction(icon: Icons.videogame_asset_rounded, label: 'Mini Games', onTap: widget.onMiniGamesTapped),
-                      _IconAction(icon: Icons.leaderboard_rounded, label: 'Leaderboard', onTap: () {}),
+                      _IconAction(icon: Icons.leaderboard_rounded, label: 'Leaderboard', onTap: widget.onLeaderboardTapped),
                     ],
                   ),
                   const SizedBox(height: 24),
