@@ -17,6 +17,8 @@ import 'screens/13_withdraw_history.dart';
 import 'screens/14_referral.dart';
 import 'screens/15_leaderboard.dart';
 import 'screens/16_notifications.dart';
+import 'screens/17_daily_checkin.dart';
+import 'screens/18_missions.dart';
 
 void main() {
   runApp(const GameVaultApp());
@@ -65,6 +67,8 @@ enum _Step {
   referral,
   leaderboard,
   notifications,
+  dailyCheckin,
+  missions,
 }
 
 class _RootFlowState extends State<RootFlow> {
@@ -131,6 +135,8 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.referral:
       case _Step.leaderboard:
       case _Step.notifications:
+      case _Step.dailyCheckin:
+      case _Step.missions:
         setState(() => _step = _Step.home);
         break;
       case _Step.withdraw:
@@ -174,6 +180,9 @@ class _RootFlowState extends State<RootFlow> {
           onSelectGameTapped: () => setState(() => _step = _Step.selectGame),
           onNotificationsTapped: () => setState(() => _step = _Step.notifications),
           onMiniGamesTapped: () => setState(() => _step = _Step.miniGames),
+          onDailyBonusTapped: () => setState(() => _step = _Step.dailyCheckin),
+          onMissionsTapped: () => setState(() => _step = _Step.missions),
+          onLeaderboardTapped: () => setState(() => _step = _Step.leaderboard),
         );
 
       case _Step.selectGame:
@@ -254,6 +263,7 @@ class _RootFlowState extends State<RootFlow> {
         return WalletScreen(
           onNavTap: _goToNavTab,
           onHistoryTapped: () => setState(() => _step = _Step.withdrawHistory),
+          onWithdrawTapped: () => setState(() => _step = _Step.withdraw),
         );
 
       case _Step.withdraw:
@@ -278,6 +288,16 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.notifications:
         return NotificationsScreen(
+          onBack: () => setState(() => _step = _Step.home),
+        );
+
+      case _Step.dailyCheckin:
+        return DailyCheckinScreen(
+          onBack: () => setState(() => _step = _Step.home),
+        );
+
+      case _Step.missions:
+        return MissionsScreen(
           onBack: () => setState(() => _step = _Step.home),
         );
     }
