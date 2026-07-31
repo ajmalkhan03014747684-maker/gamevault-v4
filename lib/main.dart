@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'services/cooldown_storage.dart';
+import 'services/supabase_config.dart';
 import 'screens/01_splash_screen.dart';
 import 'screens/02_login_register.dart';
 import 'screens/03_home_dashboard.dart';
@@ -20,7 +21,9 @@ import 'screens/16_notifications.dart';
 import 'screens/17_daily_checkin.dart';
 import 'screens/18_missions.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SupabaseConfig.init();
   runApp(const GameVaultApp());
 }
 
