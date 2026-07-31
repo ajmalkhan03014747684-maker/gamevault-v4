@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
+import 'services/cooldown_storage.dart';
 import 'screens/01_splash_screen.dart';
 import 'screens/02_login_register.dart';
 import 'screens/03_home_dashboard.dart';
@@ -35,10 +36,11 @@ class GameVaultApp extends StatelessWidget {
   }
 }
 
-/// Full 16-screen flow controller, in-memory state for now.
-/// Real Supabase wiring, Admin Panel, and real Ads Kit integration are
-/// still pending — this covers the complete UI/navigation flow with
-/// local/simulated data.
+/// Full 16-screen flow controller.
+/// Cooldown is now persisted via CooldownStorage (survives navigating
+/// away, backgrounding, or fully closing the app) — fixes the bug where
+/// leaving Cooldown and tapping "WATCH REWARDED AD" again skipped the
+/// wait entirely.
 class RootFlow extends StatefulWidget {
   const RootFlow({super.key});
 
@@ -70,7 +72,6 @@ class _RootFlowState extends State<RootFlow> {
   GameInfo _selectedGame = kGames.first;
   int _adsWatched = 42;
   final int _adsRequired = 60;
-  DateTime _cooldownEndsAt = DateTime.now();
 
   void _goToNavTab(int i) {
     switch (i) {
@@ -92,8 +93,72 @@ class _RootFlowState extends State<RootFlow> {
     }
   }
 
+  /// Called when the user taps "WATCH REWARDED AD" on Game Details.
+  /// Checks the PERSISTED cooldown first — this is the actual fix.
+  /// If a cooldown is still active, route to the Cooldown screen
+  /// instead of letting them watch another ad.
+  Future<void> _handleWatchAdRequested() async {
+    final activeCooldown = await CooldownStorage.getCooldownEnd();
+    if (activeCooldown != null) {
+      if (!mounted) return;
+      setState(() => _step = _Step.cooldown);
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _step = _Step.adWatch);
+  }
+
+  /// Where the hardware/gesture back button should send the user for
+  /// each step — mirrors each screen's own back arrow, so Android's
+  /// system back button never dumps the user out to their phone's home
+  /// screen while still inside the app flow.
+  void _goBack() {
+    switch (_step) {
+      case _Step.selectGame:
+        setState(() => _step = _Step.home);
+        break;
+      case _Step.gameDetails:
+        setState(() => _step = _Step.selectGame);
+        break;
+      case _Step.adWatch:
+        setState(() => _step = _Step.gameDetails);
+        break;
+      case _Step.reward:
+      case _Step.cooldown:
+      case _Step.miniGames:
+      case _Step.profile:
+      case _Step.wallet:
+      case _Step.referral:
+      case _Step.leaderboard:
+      case _Step.notifications:
+        setState(() => _step = _Step.home);
+        break;
+      case _Step.withdraw:
+      case _Step.withdrawHistory:
+        setState(() => _step = _Step.wallet);
+        break;
+      case _Step.splash:
+      case _Step.login:
+      case _Step.home:
+        break;
+    }
+  }
+
+  bool get _isRootStep =>
+      _step == _Step.splash || _step == _Step.login || _step == _Step.home;
+
   @override
   Widget build(BuildContext context) {
+    return PopScope(
+      canPop: _isRootStep,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _goBack();
+      },
+      child: _buildCurrentScreen(),
+    );
+  }
+
+  Widget _buildCurrentScreen() {
     switch (_step) {
       case _Step.splash:
         return SplashScreen(onFinished: () => setState(() => _step = _Step.login));
@@ -127,7 +192,7 @@ class _RootFlowState extends State<RootFlow> {
           adsWatched: _adsWatched,
           adsRequired: _adsRequired,
           onBack: () => setState(() => _step = _Step.selectGame),
-          onWatchAd: () => setState(() => _step = _Step.adWatch),
+          onWatchAd: _handleWatchAdRequested,
         );
 
       case _Step.adWatch:
@@ -138,24 +203,43 @@ class _RootFlowState extends State<RootFlow> {
             _adsWatched += 1;
             _step = _Step.reward;
           }),
+          onAdFailed: () => setState(() => _step = _Step.gameDetails),
         );
 
       case _Step.reward:
         return RewardSuccessScreen(
           newAds: _adsWatched,
           requiredAds: _adsRequired,
-          onContinue: () => setState(() {
-            _cooldownEndsAt = DateTime.now().add(const Duration(minutes: 1, seconds: 15));
-            _step = _Step.cooldown;
-          }),
+          onContinue: () async {
+            final end = DateTime.now().add(const Duration(minutes: 1, seconds: 15));
+            await CooldownStorage.setCooldownEnd(end);
+            if (!mounted) return;
+            setState(() => _step = _Step.cooldown);
+          },
         );
 
       case _Step.cooldown:
-        return CooldownScreen(
-          cooldownEndsAt: _cooldownEndsAt,
-          onPlayMiniGames: () => setState(() => _step = _Step.miniGames),
-          onGoHome: () => setState(() => _step = _Step.home),
-          onCooldownFinished: () => setState(() => _step = _Step.home),
+        return FutureBuilder<DateTime?>(
+          future: CooldownStorage.getCooldownEnd(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Scaffold(
+                backgroundColor: AppColors.background,
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+            final end = snapshot.data ?? DateTime.now();
+            return CooldownScreen(
+              cooldownEndsAt: end,
+              onPlayMiniGames: () => setState(() => _step = _Step.miniGames),
+              onGoHome: () => setState(() => _step = _Step.home),
+              onCooldownFinished: () async {
+                await CooldownStorage.clearCooldown();
+                if (!mounted) return;
+                setState(() => _step = _Step.home);
+              },
+            );
+          },
         );
 
       case _Step.miniGames:
