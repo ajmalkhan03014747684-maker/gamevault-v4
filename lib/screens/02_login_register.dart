@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/cyber_text_field.dart';
+import '../services/auth_service.dart';
 
 /// Screen 2 — Login / Register
+/// Now wired to real Supabase Auth via AuthService instead of a
+/// simulated delay. Register mode also creates a matching
+/// user_profiles row.
 class LoginRegisterScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
 
@@ -16,22 +20,43 @@ class LoginRegisterScreen extends StatefulWidget {
 class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   bool _isLoginTab = true;
   bool _loading = false;
+  String? _errorMessage;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
 
-  Future<void> _handleLogin() async {
-    setState(() => _loading = true);
-    // TODO: wire real Supabase auth here.
-    await Future.delayed(const Duration(milliseconds: 900));
+  Future<void> _handleSubmit() async {
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    final result = _isLoginTab
+        ? await AuthService.instance.signIn(email: email, password: password)
+        : await AuthService.instance.signUp(
+            email: email,
+            password: password,
+            username: _usernameController.text.trim(),
+          );
+
     if (!mounted) return;
     setState(() => _loading = false);
-    widget.onLoginSuccess();
+
+    if (result.success) {
+      widget.onLoginSuccess();
+    } else {
+      setState(() => _errorMessage = result.errorMessage ?? 'Something went wrong.');
+    }
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -66,16 +91,15 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text('Welcome Back!',
+                Text(_isLoginTab ? 'Welcome Back!' : 'Create Account',
                     textAlign: TextAlign.center,
                     style: AppText.heading(size: 24)),
                 const SizedBox(height: 6),
-                Text('Login to continue',
+                Text(_isLoginTab ? 'Login to continue' : 'Join GameVault today',
                     textAlign: TextAlign.center,
                     style: AppText.caption(size: 14)),
                 const SizedBox(height: 28),
 
-                // Tabs
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
@@ -91,10 +115,20 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                if (!_isLoginTab) ...[
+                  CyberTextField(
+                    hint: 'Username',
+                    icon: Icons.badge_outlined,
+                    controller: _usernameController,
+                  ),
+                  const SizedBox(height: 14),
+                ],
+
                 CyberTextField(
-                  hint: 'Email or Username',
+                  hint: 'Email',
                   icon: Icons.person_outline_rounded,
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 14),
                 CyberTextField(
@@ -103,60 +137,57 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                   obscureText: true,
                   controller: _passwordController,
                 ),
+
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 10),
+                  Text(_errorMessage!,
+                      style: AppText.caption(size: 12, color: AppColors.dangerRed)),
+                ],
+
                 const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {},
-                    child: Text('Forgot Password?',
-                        style: AppText.caption(
-                            size: 13, color: AppColors.primaryPurple)),
+                if (_isLoginTab)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {},
+                      child: Text('Forgot Password?',
+                          style: AppText.caption(
+                              size: 13, color: AppColors.primaryPurple)),
+                    ),
                   ),
-                ),
                 const SizedBox(height: 8),
                 GradientButton(
-                  label: 'LOGIN',
+                  label: _isLoginTab ? 'LOGIN' : 'CREATE ACCOUNT',
                   loading: _loading,
-                  onPressed: _handleLogin,
-                ),
-                const SizedBox(height: 24),
-
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: AppColors.glassBorder)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('or continue with',
-                          style: AppText.caption(size: 12)),
-                    ),
-                    Expanded(child: Divider(color: AppColors.glassBorder)),
-                  ],
+                  onPressed: _handleSubmit,
                 ),
                 const SizedBox(height: 20),
 
-                _SocialButton(
-                  label: 'Continue with Google',
-                  bg: Colors.white,
-                  fg: Colors.black87,
-                  icon: Icons.g_mobiledata_rounded,
-                  onTap: () {},
+                OutlineButton(
+                  label: 'Continue as Guest',
+                  onPressed: () {
+                    // TODO: wire Supabase anonymous sign-in once enabled
+                    // in your project's Auth settings.
+                    widget.onLoginSuccess();
+                  },
                 ),
-                const SizedBox(height: 12),
-                OutlineButton(label: 'Continue as Guest', onPressed: () {}),
                 const SizedBox(height: 24),
 
                 Center(
-                  child: RichText(
-                    text: TextSpan(
-                      style: AppText.caption(size: 13),
-                      children: [
-                        const TextSpan(text: 'New here? '),
-                        TextSpan(
-                          text: 'Create Account',
-                          style: AppText.caption(
-                              size: 13, color: AppColors.primaryPurple),
-                        ),
-                      ],
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isLoginTab = !_isLoginTab),
+                    child: RichText(
+                      text: TextSpan(
+                        style: AppText.caption(size: 13),
+                        children: [
+                          TextSpan(text: _isLoginTab ? 'New here? ' : 'Already have an account? '),
+                          TextSpan(
+                            text: _isLoginTab ? 'Create Account' : 'Login',
+                            style: AppText.caption(
+                                size: 13, color: AppColors.primaryPurple),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -171,7 +202,10 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   Widget _buildTab(String label, bool isLogin) {
     final active = _isLoginTab == isLogin;
     return GestureDetector(
-      onTap: () => setState(() => _isLoginTab = isLogin),
+      onTap: () => setState(() {
+        _isLoginTab = isLogin;
+        _errorMessage = null;
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -193,37 +227,4 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   }
 }
 
-class _SocialButton extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-  final IconData icon;
-  final VoidCallback onTap;
 
-  const _SocialButton({
-    required this.label,
-    required this.bg,
-    required this.fg,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 52,
-      child: ElevatedButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, color: fg),
-        label: Text(label,
-            style: AppText.body(size: 15, color: fg, weight: FontWeight.w600)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: bg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.button),
-          ),
-        ),
-      ),
-    );
-  }
-}
