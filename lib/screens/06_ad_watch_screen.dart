@@ -1,17 +1,24 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/ads_service.dart';
 
 /// Screen 6 — Ad Watch Screen
+/// Now calls AdsService.showRewardedAd() and only proceeds to reward
+/// on AdResult.completed — never on a bare timer alone. The simulated
+/// delay lives inside AdsService now, not here, so swapping in the
+/// real Huawei SDK later doesn't require touching this screen.
 class AdWatchScreen extends StatefulWidget {
   final int currentAds;
   final int requiredAds;
   final VoidCallback onAdComplete;
+  final VoidCallback onAdFailed;
 
   const AdWatchScreen({
     super.key,
     required this.currentAds,
     required this.requiredAds,
     required this.onAdComplete,
+    required this.onAdFailed,
   });
 
   @override
@@ -28,11 +35,17 @@ class _AdWatchScreenState extends State<AdWatchScreen>
   @override
   void initState() {
     super.initState();
-    // Simulated ad playback delay. Replace with real HMS Ads Kit callback
-    // once credentials are provided.
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) widget.onAdComplete();
-    });
+    _playAd();
+  }
+
+  Future<void> _playAd() async {
+    final result = await AdsService.instance.showRewardedAd();
+    if (!mounted) return;
+    if (result == AdResult.completed) {
+      widget.onAdComplete();
+    } else {
+      widget.onAdFailed();
+    }
   }
 
   @override
