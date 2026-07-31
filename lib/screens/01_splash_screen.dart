@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glowing_progress_bar.dart';
+import '../widgets/cosmic_particles_background.dart';
 
 /// Screen 1 — Splash Screen
 /// Matches: dark cosmic background, glowing purple game controller icon,
@@ -62,7 +63,8 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Container(
+      body: CosmicParticlesBackground(
+        child: Container(
         decoration: const BoxDecoration(gradient: AppGradients.screenGlow),
         child: SafeArea(
           child: Padding(
@@ -125,6 +127,7 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ),
+      ),
       ),
     );
   }
