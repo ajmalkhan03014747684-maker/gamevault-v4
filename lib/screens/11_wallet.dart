@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 /// Screen 11 — Wallet
 class WalletScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final VoidCallback onHistoryTapped;
+  final VoidCallback onWithdrawTapped;
 
-  const WalletScreen({super.key, required this.onNavTap, required this.onHistoryTapped});
+  const WalletScreen({
+    super.key,
+    required this.onNavTap,
+    required this.onHistoryTapped,
+    required this.onWithdrawTapped,
+  });
 
   @override
   State<WalletScreen> createState() => _WalletScreenState();
@@ -41,6 +48,12 @@ class _WalletScreenState extends State<WalletScreen> {
                         Text('Total Balance', style: AppText.caption()),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 14),
+                  GradientButton(
+                    label: 'WITHDRAW',
+                    icon: Icons.arrow_downward_rounded,
+                    onPressed: widget.onWithdrawTapped,
                   ),
                   const SizedBox(height: 18),
                   Container(
