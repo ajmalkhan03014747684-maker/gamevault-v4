@@ -2,11 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/gradient_button.dart';
+import '../widgets/cosmic_particles_background.dart';
 
 /// Screen 8 — Cooldown Screen
-/// Uses a real wall-clock deadline (passed in) so the countdown survives
-/// app restarts — the deadline should be persisted (e.g. shared_preferences)
-/// by the caller, not just held in memory.
+/// Deadline is persisted by the caller (CooldownStorage) so the
+/// countdown survives navigating away or closing the app entirely.
+/// Now includes floating background particles for the "waiting" mood.
 class CooldownScreen extends StatefulWidget {
   final DateTime cooldownEndsAt;
   final VoidCallback onPlayMiniGames;
@@ -25,9 +26,15 @@ class CooldownScreen extends StatefulWidget {
   State<CooldownScreen> createState() => _CooldownScreenState();
 }
 
-class _CooldownScreenState extends State<CooldownScreen> {
+class _CooldownScreenState extends State<CooldownScreen>
+    with SingleTickerProviderStateMixin {
   late Timer _timer;
   late Duration _remaining;
+
+  late final AnimationController _ringController = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  )..repeat();
 
   @override
   void initState() {
@@ -47,6 +54,7 @@ class _CooldownScreenState extends State<CooldownScreen> {
   @override
   void dispose() {
     _timer.cancel();
+    _ringController.dispose();
     super.dispose();
   }
 
@@ -57,69 +65,83 @@ class _CooldownScreenState extends State<CooldownScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              Text('Next Ad Available In', style: AppText.heading(size: 20)),
-              const SizedBox(height: 28),
-              Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const SweepGradient(colors: [
-                    AppColors.primaryPurple,
-                    AppColors.secondaryOrange,
-                    AppColors.primaryPurple,
-                  ]),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryPurple.withOpacity(0.4),
-                      blurRadius: 30,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(6),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.background,
-                  ),
-                  alignment: Alignment.center,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+      body: CosmicParticlesBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                Text('Next Ad Available In', style: AppText.heading(size: 20)),
+                const SizedBox(height: 28),
+                SizedBox(
+                  width: 160,
+                  height: 160,
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      Text('$minutes:$seconds', style: AppText.heading(size: 28)),
-                      Text('Minutes  Seconds', style: AppText.caption(size: 10)),
+                      RotationTransition(
+                        turns: _ringController,
+                        child: Container(
+                          width: 160,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const SweepGradient(colors: [
+                              AppColors.primaryPurple,
+                              AppColors.secondaryOrange,
+                              AppColors.primaryPurple,
+                            ]),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primaryPurple.withOpacity(0.4),
+                                blurRadius: 30,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 148,
+                        height: 148,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.background,
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('$minutes:$seconds', style: AppText.heading(size: 28)),
+                          Text('Minutes  Seconds', style: AppText.caption(size: 10)),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                'Play mini games or explore the app while you wait.',
-                textAlign: TextAlign.center,
-                style: AppText.caption(size: 13),
-              ),
-              const Spacer(flex: 2),
-              GradientButton(
-                label: 'PLAY MINI GAMES',
-                icon: Icons.play_arrow_rounded,
-                onPressed: widget.onPlayMiniGames,
-              ),
-              const SizedBox(height: 12),
-              OutlineButton(label: 'Go to Home', onPressed: widget.onGoHome),
-              const SizedBox(height: 16),
-              Text(
-                'Cooldown helps keep the app fair for everyone!',
-                textAlign: TextAlign.center,
-                style: AppText.caption(size: 11),
-              ),
-              const SizedBox(height: 24),
-            ],
+                const SizedBox(height: 28),
+                Text(
+                  'Play mini games or explore the app while you wait.',
+                  textAlign: TextAlign.center,
+                  style: AppText.caption(size: 13),
+                ),
+                const Spacer(flex: 2),
+                GradientButton(
+                  label: 'PLAY MINI GAMES',
+                  icon: Icons.play_arrow_rounded,
+                  onPressed: widget.onPlayMiniGames,
+                ),
+                const SizedBox(height: 12),
+                OutlineButton(label: 'Go to Home', onPressed: widget.onGoHome),
+                const SizedBox(height: 16),
+                Text(
+                  'Cooldown helps keep the app fair for everyone!',
+                  textAlign: TextAlign.center,
+                  style: AppText.caption(size: 11),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
