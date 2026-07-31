@@ -3,10 +3,16 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/glowing_progress_bar.dart';
 import '../widgets/gradient_button.dart';
+import '../widgets/ad_disclosure_dialog.dart';
+import '../services/ads_service.dart';
 import '03_home_dashboard.dart';
 
 /// Screen 5 — Game Details
-class GameDetailsScreen extends StatelessWidget {
+/// Now wired to AdsService with full Huawei ad-compliance flow:
+/// no-ad-available state, pre-ad disclosure dialog, and a tap
+/// debounce/lock so the button can't be double-tapped into firing
+/// two ad requests.
+class GameDetailsScreen extends StatefulWidget {
   final GameInfo game;
   final VoidCallback onBack;
   final VoidCallback onWatchAd;
@@ -25,8 +31,53 @@ class GameDetailsScreen extends StatelessWidget {
   });
 
   @override
+  State<GameDetailsScreen> createState() => _GameDetailsScreenState();
+}
+
+class _GameDetailsScreenState extends State<GameDetailsScreen> {
+  bool _checkingAd = true;
+  bool _requestInFlight = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAd();
+  }
+
+  Future<void> _loadAd() async {
+    setState(() => _checkingAd = true);
+    await AdsService.instance.preloadRewardedAd();
+    if (!mounted) return;
+    setState(() => _checkingAd = false);
+  }
+
+  Future<void> _onWatchAdTapped() async {
+    if (_requestInFlight || !AdsService.instance.isAdReady) return;
+    setState(() => _requestInFlight = true);
+
+    final confirmed = await showAdDisclosureDialog(
+      context,
+      rewardText: '${widget.rewardAmount} ${widget.game.currency}',
+    );
+
+    if (!confirmed) {
+      setState(() => _requestInFlight = false);
+      // Ad slot was locked by preloadRewardedAd's state change on
+      // showRewardedAd only, so a cancelled disclosure just needs a
+      // fresh preload for next time.
+      await _loadAd();
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _requestInFlight = false);
+    widget.onWatchAd(); // hands off to the Ad Watch screen, which calls
+                         // AdsService.showRewardedAd() itself
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final adsLeft = adsRequired - adsWatched;
+    final adsLeft = widget.adsRequired - widget.adsWatched;
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -36,7 +87,7 @@ class GameDetailsScreen extends StatelessWidget {
             Row(
               children: [
                 GestureDetector(
-                  onTap: onBack,
+                  onTap: widget.onBack,
                   child: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
                 ),
                 const Spacer(),
@@ -46,8 +97,8 @@ class GameDetailsScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            Text(game.name, style: AppText.heading(size: 26)),
-            Text(game.currency, style: AppText.caption(size: 14)),
+            Text(widget.game.name, style: AppText.heading(size: 26)),
+            Text(widget.game.currency, style: AppText.caption(size: 14)),
             const SizedBox(height: 16),
 
             Container(
@@ -64,7 +115,7 @@ class GameDetailsScreen extends StatelessWidget {
                 ),
               ),
               alignment: Alignment.center,
-              child: Icon(game.icon, size: 56, color: Colors.white.withOpacity(0.85)),
+              child: Icon(widget.game.icon, size: 56, color: Colors.white.withOpacity(0.85)),
             ),
             const SizedBox(height: 22),
 
@@ -72,13 +123,13 @@ class GameDetailsScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Your Progress', style: AppText.body(size: 14, weight: FontWeight.w600)),
-                Text('$adsWatched/$adsRequired Ads', style: AppText.caption(color: AppColors.text)),
+                Text('${widget.adsWatched}/${widget.adsRequired} Ads', style: AppText.caption(color: AppColors.text)),
               ],
             ),
             const SizedBox(height: 8),
-            GlowingProgressBar(value: adsWatched / adsRequired),
+            GlowingProgressBar(value: widget.adsWatched / widget.adsRequired),
             const SizedBox(height: 6),
-            Text('$adsLeft Ads more to get $rewardAmount ${game.currency}', style: AppText.caption(size: 12)),
+            Text('$adsLeft Ads more to get ${widget.rewardAmount} ${widget.game.currency}', style: AppText.caption(size: 12)),
             const SizedBox(height: 22),
 
             GlassCard(
@@ -90,8 +141,8 @@ class GameDetailsScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('$rewardAmount ${game.currency}', style: AppText.body(size: 16, weight: FontWeight.w700)),
-                        Text('After $adsRequired Ads', style: AppText.caption(size: 12)),
+                        Text('${widget.rewardAmount} ${widget.game.currency}', style: AppText.body(size: 16, weight: FontWeight.w700)),
+                        Text('After ${widget.adsRequired} Ads', style: AppText.caption(size: 12)),
                       ],
                     ),
                   ),
@@ -100,12 +151,26 @@ class GameDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            GradientButton(
-              label: 'WATCH REWARDED AD',
-              gradient: AppGradients.rewardButton,
-              icon: Icons.play_arrow_rounded,
-              onPressed: onWatchAd,
-            ),
+            if (_checkingAd)
+              const SizedBox(
+                height: 52,
+                child: Center(
+                  child: SizedBox(
+                    width: 22, height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2.4),
+                  ),
+                ),
+              )
+            else if (!AdsService.instance.isAdReady)
+              const NoAdAvailableNotice()
+            else
+              GradientButton(
+                label: 'WATCH REWARDED AD',
+                gradient: AppGradients.rewardButton,
+                icon: Icons.play_arrow_rounded,
+                loading: _requestInFlight,
+                onPressed: _onWatchAdTapped,
+              ),
             const SizedBox(height: 8),
             Center(
               child: Text('Watch ad and get +1 Progress', style: AppText.caption(size: 12)),
