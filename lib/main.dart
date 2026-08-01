@@ -211,6 +211,8 @@ class _RootFlowState extends State<RootFlow> {
         return AdWatchScreen(
           currentAds: _adsWatched,
           requiredAds: _adsRequired,
+          gameId: _selectedGame.name,
+          rewardAmount: 0.02,
           onAdComplete: () => setState(() {
             _adsWatched += 1;
             _step = _Step.reward;
@@ -272,7 +274,6 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.withdraw:
         return WithdrawScreen(
           game: _selectedGame,
-          balance: 260,
           onSubmitted: () => setState(() => _step = _Step.withdrawHistory),
         );
 
