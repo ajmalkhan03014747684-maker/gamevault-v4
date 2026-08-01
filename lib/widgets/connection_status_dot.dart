@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/connection_status_service.dart';
 
-/// Green dot = actively confirmed storing/reading data in Supabase.
-/// Orange dot = not connected / write likely failing.
+/// Green dot = actively confirmed reading data from Supabase.
+/// Orange dot = not connected / read likely failing.
 /// Rechecks every 15 seconds while visible.
 class ConnectionStatusDot extends StatefulWidget {
   final bool showLabel;
@@ -14,7 +14,7 @@ class ConnectionStatusDot extends StatefulWidget {
 }
 
 class _ConnectionStatusDotState extends State<ConnectionStatusDot> {
-  ConnectionState _state = ConnectionState.checking;
+  AppConnectionState _state = AppConnectionState.checking;
 
   @override
   void initState() {
@@ -34,14 +34,14 @@ class _ConnectionStatusDotState extends State<ConnectionStatusDot> {
   @override
   Widget build(BuildContext context) {
     final color = switch (_state) {
-      ConnectionState.connected => AppColors.successGreen,
-      ConnectionState.disconnected => AppColors.secondaryOrange,
-      ConnectionState.checking => AppColors.muted,
+      AppConnectionState.connected => AppColors.successGreen,
+      AppConnectionState.disconnected => AppColors.secondaryOrange,
+      AppConnectionState.checking => AppColors.muted,
     };
     final label = switch (_state) {
-      ConnectionState.connected => 'Connected to Supabase',
-      ConnectionState.disconnected => 'Not connected',
-      ConnectionState.checking => 'Checking...',
+      AppConnectionState.connected => 'Connected to Supabase',
+      AppConnectionState.disconnected => 'Not connected',
+      AppConnectionState.checking => 'Checking...',
     };
 
     return Row(
