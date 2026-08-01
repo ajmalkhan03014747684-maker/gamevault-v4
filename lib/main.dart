@@ -20,6 +20,14 @@ import 'screens/15_leaderboard.dart';
 import 'screens/16_notifications.dart';
 import 'screens/17_daily_checkin.dart';
 import 'screens/18_missions.dart';
+import 'screens/admin/admin_gate.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
+import 'screens/admin/admin_payouts_screen.dart';
+import 'screens/admin/admin_games_screen.dart';
+import 'screens/admin/admin_checkin_schedule_screen.dart';
+import 'screens/admin/admin_missions_screen.dart';
+import 'screens/admin/admin_antibot_screen.dart';
+import 'screens/admin/admin_users_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +80,13 @@ enum _Step {
   notifications,
   dailyCheckin,
   missions,
+  adminDashboard,
+  adminPayouts,
+  adminGames,
+  adminCheckinSchedule,
+  adminMissions,
+  adminAntiBot,
+  adminUsers,
 }
 
 class _RootFlowState extends State<RootFlow> {
@@ -145,6 +160,17 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.withdraw:
       case _Step.withdrawHistory:
         setState(() => _step = _Step.wallet);
+        break;
+      case _Step.adminPayouts:
+      case _Step.adminGames:
+      case _Step.adminCheckinSchedule:
+      case _Step.adminMissions:
+      case _Step.adminAntiBot:
+      case _Step.adminUsers:
+        setState(() => _step = _Step.adminDashboard);
+        break;
+      case _Step.adminDashboard:
+        setState(() => _step = _Step.profile);
         break;
       case _Step.splash:
       case _Step.login:
@@ -262,7 +288,10 @@ class _RootFlowState extends State<RootFlow> {
         );
 
       case _Step.profile:
-        return ProfileScreen(onNavTap: _goToNavTab);
+        return ProfileScreen(
+          onNavTap: _goToNavTab,
+          onAdminTapped: () => setState(() => _step = _Step.adminDashboard),
+        );
 
       case _Step.wallet:
         return WalletScreen(
@@ -303,6 +332,50 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.missions:
         return MissionsScreen(
           onBack: () => setState(() => _step = _Step.home),
+        );
+
+      case _Step.adminDashboard:
+        return AdminGate(
+          onAccessDenied: () => setState(() => _step = _Step.home),
+          adminContent: AdminDashboardScreen(
+            onExit: () => setState(() => _step = _Step.profile),
+            onPayoutsTapped: () => setState(() => _step = _Step.adminPayouts),
+            onGamesTapped: () => setState(() => _step = _Step.adminGames),
+            onCheckinScheduleTapped: () => setState(() => _step = _Step.adminCheckinSchedule),
+            onMissionsTapped: () => setState(() => _step = _Step.adminMissions),
+            onAntiBotTapped: () => setState(() => _step = _Step.adminAntiBot),
+            onUsersTapped: () => setState(() => _step = _Step.adminUsers),
+          ),
+        );
+
+      case _Step.adminPayouts:
+        return AdminPayoutsScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminGames:
+        return AdminGamesScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminCheckinSchedule:
+        return AdminCheckinScheduleScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminMissions:
+        return AdminMissionsScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminAntiBot:
+        return AdminAntiBotScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminUsers:
+        return AdminUsersScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
         );
     }
   }
