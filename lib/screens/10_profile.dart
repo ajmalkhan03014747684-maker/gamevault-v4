@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/connection_status_dot.dart';
 
 /// Screen 10 — Profile
 class ProfileScreen extends StatelessWidget {
@@ -64,6 +65,8 @@ class ProfileScreen extends StatelessWidget {
                   _MenuRow(icon: Icons.security_rounded, label: 'Security', onTap: () {}),
                   _MenuRow(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: () {}),
                   _MenuRow(icon: Icons.language_rounded, label: 'Language', trailing: 'English', onTap: () {}),
+                  const SizedBox(height: 20),
+                  Center(child: const ConnectionStatusDot()),
                 ],
               ),
             ),
