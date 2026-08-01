@@ -3,18 +3,18 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/cyber_text_field.dart';
+import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
 /// Screen 12 — Withdraw
+/// Fetches real balance and submits real requests via GameDataService.
 class WithdrawScreen extends StatefulWidget {
   final GameInfo game;
-  final int balance;
   final VoidCallback onSubmitted;
 
   const WithdrawScreen({
     super.key,
     required this.game,
-    required this.balance,
     required this.onSubmitted,
   });
 
@@ -25,15 +25,60 @@ class WithdrawScreen extends StatefulWidget {
 class _WithdrawScreenState extends State<WithdrawScreen> {
   final _uidController = TextEditingController();
   bool _submitting = false;
+  bool _loadingBalance = true;
+  double _balance = 0.0;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBalance();
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final b = await GameDataService.instance.getBalance(widget.game.name);
+      if (!mounted) return;
+      setState(() {
+        _balance = b;
+        _loadingBalance = false;
+      });
+    } on GameDataException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.message;
+        _loadingBalance = false;
+      });
+    }
+  }
 
   Future<void> _submit() async {
-    if (_uidController.text.trim().isEmpty) return;
-    setState(() => _submitting = true);
-    // TODO: wire to real payout_requests insert once Supabase is connected.
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() => _submitting = false);
-    widget.onSubmitted();
+    if (_uidController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Please enter your game UID.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+
+    try {
+      await GameDataService.instance.submitWithdrawRequest(
+        gameId: widget.game.name,
+        amount: _balance,
+        gameUid: _uidController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      widget.onSubmitted();
+    } on GameDataException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorMessage = e.message;
+      });
+    }
   }
 
   @override
@@ -82,22 +127,24 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            Text('Your Balance: ${widget.balance} ${widget.game.currency}', style: AppText.body(size: 14, weight: FontWeight.w600)),
-            const SizedBox(height: 18),
-            Text('Withdraw Amount', style: AppText.caption()),
-            const SizedBox(height: 6),
-            Text('${widget.balance} 💎 = 1 Withdraw', style: AppText.body(size: 14)),
+            _loadingBalance
+                ? const SizedBox(height: 20, child: LinearProgressIndicator())
+                : Text('Your Balance: ${_balance.toStringAsFixed(2)} ${widget.game.currency}', style: AppText.body(size: 14, weight: FontWeight.w600)),
             const SizedBox(height: 18),
             CyberTextField(
               hint: 'Enter ${widget.game.name} UID',
               icon: Icons.badge_outlined,
               controller: _uidController,
             ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(_errorMessage!, style: AppText.caption(size: 12, color: AppColors.dangerRed)),
+            ],
             const SizedBox(height: 22),
             GradientButton(
               label: 'SUBMIT REQUEST',
               loading: _submitting,
-              onPressed: _submit,
+              onPressed: _balance > 0 ? _submit : null,
             ),
             const SizedBox(height: 10),
             Center(
