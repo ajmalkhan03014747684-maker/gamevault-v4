@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/ads_service.dart';
+import '../services/game_data_service.dart';
 
 /// Screen 6 — Ad Watch Screen
-/// Now calls AdsService.showRewardedAd() and only proceeds to reward
-/// on AdResult.completed — never on a bare timer alone. The simulated
-/// delay lives inside AdsService now, not here, so swapping in the
-/// real Huawei SDK later doesn't require touching this screen.
+/// Calls AdsService.showRewardedAd() and, on real completion, records
+/// the watch AND credits the reward via GameDataService — this is what
+/// makes the reward loop real instead of just visual.
 class AdWatchScreen extends StatefulWidget {
   final int currentAds;
   final int requiredAds;
+  final String gameId;
+  final double rewardAmount;
   final VoidCallback onAdComplete;
   final VoidCallback onAdFailed;
 
@@ -17,6 +19,8 @@ class AdWatchScreen extends StatefulWidget {
     super.key,
     required this.currentAds,
     required this.requiredAds,
+    required this.gameId,
+    required this.rewardAmount,
     required this.onAdComplete,
     required this.onAdFailed,
   });
@@ -32,6 +36,8 @@ class _AdWatchScreenState extends State<AdWatchScreen>
     duration: const Duration(milliseconds: 900),
   )..repeat(reverse: true);
 
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
@@ -41,10 +47,24 @@ class _AdWatchScreenState extends State<AdWatchScreen>
   Future<void> _playAd() async {
     final result = await AdsService.instance.showRewardedAd();
     if (!mounted) return;
-    if (result == AdResult.completed) {
-      widget.onAdComplete();
-    } else {
+
+    if (result != AdResult.completed) {
       widget.onAdFailed();
+      return;
+    }
+
+    try {
+      await GameDataService.instance.recordAdWatchAndCredit(
+        gameId: widget.gameId,
+        rewardAmount: widget.rewardAmount,
+      );
+      if (!mounted) return;
+      widget.onAdComplete();
+    } on GameDataException catch (e) {
+      if (!mounted) return;
+      // Ad played, but crediting failed (e.g. RLS/schema issue) — show
+      // the real error instead of silently pretending it worked.
+      setState(() => _errorMessage = e.message);
     }
   }
 
@@ -103,6 +123,17 @@ class _AdWatchScreenState extends State<AdWatchScreen>
                     style: AppText.body(size: 16, weight: FontWeight.w700, color: AppColors.successGreen)),
                 const SizedBox(height: 8),
                 Text('Your Progress: ${widget.currentAds}/${widget.requiredAds} Ads', style: AppText.caption()),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Text(_errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: AppText.caption(size: 12, color: AppColors.dangerRed)),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: widget.onAdFailed,
+                    child: Text('Go back', style: AppText.body(color: AppColors.primaryPurple)),
+                  ),
+                ],
                 const Spacer(),
                 Text('Ad will start automatically', style: AppText.caption(size: 12)),
                 const SizedBox(height: 4),
