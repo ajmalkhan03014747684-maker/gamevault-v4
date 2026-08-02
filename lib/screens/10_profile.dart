@@ -3,12 +3,36 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/connection_status_dot.dart';
+import '../services/auth_service.dart';
 
 /// Screen 10 — Profile
-class ProfileScreen extends StatelessWidget {
+/// Now checks the real user role and shows an Admin Panel entry row
+/// only for actual admins — no hidden gestures or hardcoded taps
+/// needed, and the row simply doesn't render for regular users.
+class ProfileScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
+  final VoidCallback onAdminTapped;
 
-  const ProfileScreen({super.key, required this.onNavTap});
+  const ProfileScreen({super.key, required this.onNavTap, required this.onAdminTapped});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdmin();
+  }
+
+  Future<void> _checkAdmin() async {
+    final role = await AuthService.instance.getCurrentUserRole();
+    if (!mounted) return;
+    setState(() => _isAdmin = role == 'admin');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,12 +89,21 @@ class ProfileScreen extends StatelessWidget {
                   _MenuRow(icon: Icons.security_rounded, label: 'Security', onTap: () {}),
                   _MenuRow(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: () {}),
                   _MenuRow(icon: Icons.language_rounded, label: 'Language', trailing: 'English', onTap: () {}),
+                  if (_isAdmin) ...[
+                    const SizedBox(height: 8),
+                    _MenuRow(
+                      icon: Icons.admin_panel_settings_rounded,
+                      label: 'Admin Panel',
+                      onTap: widget.onAdminTapped,
+                      highlight: true,
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Center(child: const ConnectionStatusDot()),
                 ],
               ),
             ),
-            BottomNavBar(currentIndex: 4, onTap: onNavTap),
+            BottomNavBar(currentIndex: 4, onTap: widget.onNavTap),
           ],
         ),
       ),
@@ -100,8 +133,15 @@ class _MenuRow extends StatelessWidget {
   final String label;
   final String? trailing;
   final VoidCallback onTap;
+  final bool highlight;
 
-  const _MenuRow({required this.icon, required this.label, required this.onTap, this.trailing});
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.trailing,
+    this.highlight = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +149,7 @@ class _MenuRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
         onTap: onTap,
+        borderColor: highlight ? AppColors.primaryPurple : null,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
