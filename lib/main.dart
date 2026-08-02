@@ -91,7 +91,8 @@ enum _Step {
 
 class _RootFlowState extends State<RootFlow> {
   _Step _step = _Step.splash;
-  GameInfo _selectedGame = kGames.first;
+  GameInfo? _selectedGame;
+  List<GameInfo> _availableGames = [];
   int _adsWatched = 42;
   final int _adsRequired = 60;
 
@@ -206,7 +207,14 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.home:
         return HomeDashboardScreen(
           onNavTap: _goToNavTab,
-          onSelectGameTapped: () => setState(() => _step = _Step.selectGame),
+          onSelectGameTapped: (games) => setState(() {
+            _availableGames = games;
+            _step = _Step.selectGame;
+          }),
+          onGameRowTapped: (g) => setState(() {
+            _selectedGame = g;
+            _step = _Step.gameDetails;
+          }),
           onNotificationsTapped: () => setState(() => _step = _Step.notifications),
           onMiniGamesTapped: () => setState(() => _step = _Step.miniGames),
           onDailyBonusTapped: () => setState(() => _step = _Step.dailyCheckin),
@@ -216,7 +224,8 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.selectGame:
         return SelectGameScreen(
-          activeGameName: _selectedGame.name,
+          games: _availableGames,
+          activeGameName: _selectedGame?.name ?? '',
           onBack: () => setState(() => _step = _Step.home),
           onGameSelected: (g) => setState(() {
             _selectedGame = g;
@@ -226,7 +235,7 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.gameDetails:
         return GameDetailsScreen(
-          game: _selectedGame,
+          game: _selectedGame!,
           adsWatched: _adsWatched,
           adsRequired: _adsRequired,
           onBack: () => setState(() => _step = _Step.selectGame),
@@ -237,7 +246,7 @@ class _RootFlowState extends State<RootFlow> {
         return AdWatchScreen(
           currentAds: _adsWatched,
           requiredAds: _adsRequired,
-          gameId: _selectedGame.name,
+          gameId: _selectedGame!.name,
           rewardAmount: 0.02,
           onAdComplete: () => setState(() {
             _adsWatched += 1;
@@ -302,7 +311,7 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.withdraw:
         return WithdrawScreen(
-          game: _selectedGame,
+          game: _selectedGame!,
           onSubmitted: () => setState(() => _step = _Step.withdrawHistory),
         );
 
