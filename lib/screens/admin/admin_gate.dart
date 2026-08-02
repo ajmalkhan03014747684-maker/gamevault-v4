@@ -57,8 +57,6 @@ class _AdminGateState extends State<AdminGate> {
       );
     }
     if (!_isAdmin) {
-      // onAccessDenied already fired; this is just a brief fallback
-      // frame while navigation happens.
       return const Scaffold(backgroundColor: AppColors.background, body: SizedBox());
     }
     return widget.adminContent;
