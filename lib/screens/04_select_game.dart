@@ -4,16 +4,21 @@ import '../widgets/glass_card.dart';
 import '03_home_dashboard.dart';
 
 /// Screen 4 — Select Game
+/// Now receives the real games list (loaded from Supabase by Home
+/// Dashboard) instead of a hardcoded constant — respects Admin
+/// Panel's active/inactive toggle automatically.
 class SelectGameScreen extends StatelessWidget {
   final VoidCallback onBack;
   final void Function(GameInfo game) onGameSelected;
+  final List<GameInfo> games;
   final String activeGameName;
 
   const SelectGameScreen({
     super.key,
     required this.onBack,
     required this.onGameSelected,
-    this.activeGameName = 'Free Fire',
+    required this.games,
+    this.activeGameName = '',
   });
 
   @override
@@ -49,60 +54,68 @@ class SelectGameScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: kGames.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, i) {
-                  final g = kGames[i];
-                  final isActive = g.name == activeGameName;
-                  return GlassCard(
-                    onTap: () => onGameSelected(g),
-                    padding: const EdgeInsets.all(14),
-                    borderColor: isActive ? AppColors.primaryPurple : null,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            color: AppColors.surface2,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(g.icon, color: AppColors.primaryPurple),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+              child: games.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No games available right now.\nCheck back soon!',
+                        textAlign: TextAlign.center,
+                        style: AppText.caption(),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: games.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, i) {
+                        final g = games[i];
+                        final isActive = g.name == activeGameName;
+                        return GlassCard(
+                          onTap: () => onGameSelected(g),
+                          padding: const EdgeInsets.all(14),
+                          borderColor: isActive ? AppColors.primaryPurple : null,
+                          child: Row(
                             children: [
-                              Row(
-                                children: [
-                                  Text(g.name, style: AppText.body(size: 15, weight: FontWeight.w700)),
-                                  if (isActive) ...[
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryPurple.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(AppRadius.chip),
-                                      ),
-                                      child: Text('Active',
-                                          style: AppText.caption(size: 10, color: AppColors.primaryPurple)),
-                                    ),
-                                  ],
-                                ],
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface2,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(g.icon, color: AppColors.primaryPurple),
                               ),
-                              Text(g.currency, style: AppText.caption(size: 12)),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(g.name, style: AppText.body(size: 15, weight: FontWeight.w700)),
+                                        if (isActive) ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primaryPurple.withOpacity(0.2),
+                                              borderRadius: BorderRadius.circular(AppRadius.chip),
+                                            ),
+                                            child: Text('Active',
+                                                style: AppText.caption(size: 10, color: AppColors.primaryPurple)),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                    Text(g.currency, style: AppText.caption(size: 12)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
                             ],
                           ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-                      ],
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
             const SizedBox(height: 12),
           ],
