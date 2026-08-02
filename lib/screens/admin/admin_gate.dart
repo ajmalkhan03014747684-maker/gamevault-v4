@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import '../services/auth_service.dart';
+import '../../theme/app_theme.dart';
+import '../../services/auth_service.dart';
 
 /// Real admin access gate. Checks the logged-in user's role from
 /// Supabase (user_profiles.role) — replaces the old HTML app's
