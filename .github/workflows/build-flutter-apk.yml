@@ -19,6 +19,11 @@ jobs:
       - name: Generate missing platform files (android/ios)
         run: flutter create --platforms=android --project-name gamevault .
 
+      - name: Ensure INTERNET permission for release builds
+        run: |
+          sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Install dependencies
         run: flutter pub get
 
