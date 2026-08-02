@@ -151,4 +151,99 @@ class GameDataService {
       throw GameDataException('Could not load leaderboard: $e');
     }
   }
+
+  /// Active games list — this is what makes Admin Panel's "Manage
+  /// Games" toggle actually mean something; before this, the app used
+  /// a hardcoded 6-game list that ignored is_active entirely.
+  Future<List<Map<String, dynamic>>> getActiveGames() async {
+    try {
+      final rows = await supabase.from('games').select().eq('is_active', true).order('name');
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (e) {
+      throw GameDataException('Could not load games: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getNotifications() async {
+    final uid = _uid;
+    if (uid == null) return [];
+    try {
+      final rows = await supabase
+          .from('notifications')
+          .select()
+          .eq('user_id', uid)
+          .order('created_at', ascending: false)
+          .limit(50);
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (e) {
+      throw GameDataException('Could not load notifications: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> getReferralStats() async {
+    final uid = _uid;
+    if (uid == null) return {'total_referrals': 0, 'total_earned': 0.0};
+    try {
+      final rows = await supabase.from('referrals').select().eq('referrer_id', uid);
+      final list = rows as List;
+      double totalEarned = 0;
+      for (final r in list) {
+        totalEarned += (r['reward_amount'] as num?)?.toDouble() ?? 0;
+      }
+      return {'total_referrals': list.length, 'total_earned': totalEarned};
+    } catch (e) {
+      throw GameDataException('Could not load referral stats: $e');
+    }
+  }
+
+  Future<String> getMyReferralCode() async {
+    final uid = _uid;
+    if (uid == null) return '';
+    try {
+      final row = await supabase
+          .from('user_profiles')
+          .select('referral_code')
+          .eq('id', uid)
+          .maybeSingle();
+      final existing = row?['referral_code'] as String?;
+      if (existing != null && existing.isNotEmpty) return existing;
+
+      // Generate one if this user doesn't have one yet.
+      final generated = 'GAMEVAULT${uid.substring(0, 6).toUpperCase()}';
+      await supabase.from('user_profiles').update({'referral_code': generated}).eq('id', uid);
+      return generated;
+    } catch (e) {
+      throw GameDataException('Could not load referral code: $e');
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getWithdrawRates(String gameId) async {
+    try {
+      final rows = await supabase.from('withdraw_requirements').select().eq('game_id', gameId);
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (e) {
+      throw GameDataException('Could not load withdraw rates: $e');
+    }
+  }
+
+  /// Sum of balances across all games for this user — used for Home
+  /// Dashboard's "Total Balance" card, which previously showed a
+  /// static "260" regardless of real data.
+  Future<double> getTotalBalance() async {
+    final uid = _uid;
+    if (uid == null) return 0;
+    try {
+      final rows = await supabase
+          .from('user_game_balances')
+          .select('balance')
+          .eq('user_id', uid);
+      double total = 0;
+      for (final row in (rows as List)) {
+        total += (row['balance'] as num?)?.toDouble() ?? 0;
+      }
+      return total;
+    } catch (e) {
+      throw GameDataException('Could not load total balance: $e');
+    }
+  }
 }
