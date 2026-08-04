@@ -28,6 +28,11 @@ import 'screens/admin/admin_checkin_schedule_screen.dart';
 import 'screens/admin/admin_missions_screen.dart';
 import 'screens/admin/admin_antibot_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
+import 'screens/admin/admin_thresholds_screen.dart';
+import 'screens/admin/admin_referral_configs_screen.dart';
+import 'screens/admin/admin_withdraw_req_screen.dart';
+import 'screens/admin/admin_settings_screen.dart';
+import 'screens/admin/admin_danger_zone_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +92,11 @@ enum _Step {
   adminMissions,
   adminAntiBot,
   adminUsers,
+  adminSettings,
+  adminDangerZone,
+  adminThresholds,
+  adminReferralConfigs,
+  adminWithdrawReq,
 }
 
 class _RootFlowState extends State<RootFlow> {
@@ -168,6 +178,11 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.adminMissions:
       case _Step.adminAntiBot:
       case _Step.adminUsers:
+      case _Step.adminSettings:
+      case _Step.adminDangerZone:
+      case _Step.adminThresholds:
+      case _Step.adminReferralConfigs:
+      case _Step.adminWithdrawReq:
         setState(() => _step = _Step.adminDashboard);
         break;
       case _Step.adminDashboard:
@@ -354,6 +369,11 @@ class _RootFlowState extends State<RootFlow> {
             onMissionsTapped: () => setState(() => _step = _Step.adminMissions),
             onAntiBotTapped: () => setState(() => _step = _Step.adminAntiBot),
             onUsersTapped: () => setState(() => _step = _Step.adminUsers),
+            onSettingsTapped: () => setState(() => _step = _Step.adminSettings),
+            onDangerZoneTapped: () => setState(() => _step = _Step.adminDangerZone),
+            onThresholdsTapped: () => setState(() => _step = _Step.adminThresholds),
+            onReferralConfigsTapped: () => setState(() => _step = _Step.adminReferralConfigs),
+            onWithdrawReqTapped: () => setState(() => _step = _Step.adminWithdrawReq),
           ),
         );
 
@@ -384,6 +404,31 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.adminUsers:
         return AdminUsersScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminSettings:
+        return AdminSettingsScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminDangerZone:
+        return AdminDangerZoneScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminThresholds:
+        return AdminThresholdsScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminReferralConfigs:
+        return AdminReferralConfigsScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminWithdrawReq:
+        return AdminWithdrawReqScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
         );
     }
