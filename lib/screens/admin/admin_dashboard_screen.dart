@@ -11,6 +11,11 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback onMissionsTapped;
   final VoidCallback onAntiBotTapped;
   final VoidCallback onUsersTapped;
+  final VoidCallback onSettingsTapped;
+  final VoidCallback onDangerZoneTapped;
+  final VoidCallback onThresholdsTapped;
+  final VoidCallback onReferralConfigsTapped;
+  final VoidCallback onWithdrawReqTapped;
 
   const AdminDashboardScreen({
     super.key,
@@ -21,6 +26,11 @@ class AdminDashboardScreen extends StatefulWidget {
     required this.onMissionsTapped,
     required this.onAntiBotTapped,
     required this.onUsersTapped,
+    required this.onSettingsTapped,
+    required this.onDangerZoneTapped,
+    required this.onThresholdsTapped,
+    required this.onReferralConfigsTapped,
+    required this.onWithdrawReqTapped,
   });
 
   @override
@@ -113,10 +123,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 onTap: widget.onPayoutsTapped,
               ),
               _AdminMenuRow(icon: Icons.sports_esports_rounded, label: 'Manage Games', onTap: widget.onGamesTapped),
+              _AdminMenuRow(icon: Icons.trending_up_rounded, label: 'Ad Thresholds', onTap: widget.onThresholdsTapped),
               _AdminMenuRow(icon: Icons.card_giftcard_rounded, label: 'Daily Check-in Schedule', onTap: widget.onCheckinScheduleTapped),
               _AdminMenuRow(icon: Icons.flag_rounded, label: 'Missions', onTap: widget.onMissionsTapped),
+              _AdminMenuRow(icon: Icons.group_add_rounded, label: 'Referral Configs', onTap: widget.onReferralConfigsTapped),
+              _AdminMenuRow(icon: Icons.account_balance_wallet_rounded, label: 'Withdraw Requirements', onTap: widget.onWithdrawReqTapped),
               _AdminMenuRow(icon: Icons.shield_rounded, label: 'Anti-Bot / Flagged Users', onTap: widget.onAntiBotTapped),
               _AdminMenuRow(icon: Icons.person_off_rounded, label: 'Manage Users / Ban', onTap: widget.onUsersTapped),
+              _AdminMenuRow(icon: Icons.settings_rounded, label: 'App Settings', onTap: widget.onSettingsTapped),
+              const SizedBox(height: 8),
+              _AdminMenuRow(
+                icon: Icons.delete_forever_rounded,
+                label: 'Danger Zone',
+                onTap: widget.onDangerZoneTapped,
+                isDanger: true,
+              ),
             ],
           ),
         ),
@@ -157,6 +178,7 @@ class _AdminMenuRow extends StatelessWidget {
   final VoidCallback onTap;
   final String? badge;
   final bool comingSoon;
+  final bool isDanger;
 
   const _AdminMenuRow({
     required this.icon,
@@ -164,20 +186,29 @@ class _AdminMenuRow extends StatelessWidget {
     required this.onTap,
     this.badge,
     this.comingSoon = false,
+    this.isDanger = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = isDanger
+        ? AppColors.dangerRed
+        : (comingSoon ? AppColors.muted : AppColors.primaryPurple);
+    final textColor = isDanger
+        ? AppColors.dangerRed
+        : (comingSoon ? AppColors.muted : AppColors.text);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: GlassCard(
         onTap: comingSoon ? null : onTap,
+        borderColor: isDanger ? AppColors.dangerRed.withOpacity(0.4) : null,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: comingSoon ? AppColors.muted : AppColors.primaryPurple, size: 20),
+            Icon(icon, color: iconColor, size: 20),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: AppText.body(size: 14, weight: FontWeight.w600, color: comingSoon ? AppColors.muted : AppColors.text))),
+            Expanded(child: Text(label, style: AppText.body(size: 14, weight: FontWeight.w600, color: textColor))),
             if (badge != null) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -189,7 +220,7 @@ class _AdminMenuRow extends StatelessWidget {
             if (comingSoon)
               Text('Soon', style: AppText.caption(size: 11))
             else
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 20),
+              Icon(Icons.chevron_right_rounded, color: isDanger ? AppColors.dangerRed : AppColors.muted, size: 20),
           ],
         ),
       ),
