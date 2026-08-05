@@ -4,7 +4,6 @@ import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../services/game_data_service.dart';
-import '03_home_dashboard.dart';
 
 /// Screen 11 — Wallet
 /// Pulls real balance and ad counts from Supabase via GameDataService.
@@ -44,13 +43,7 @@ class _WalletScreenState extends State<WalletScreen> {
       _error = null;
     });
     try {
-      // Sums across the user's known games — adjust the game list
-      // source once you have a real "my games" table if this should
-      // be scoped differently.
-      double total = 0;
-      for (final g in kGames) {
-        total += await GameDataService.instance.getBalance(g.name);
-      }
+      final total = await GameDataService.instance.getTotalBalance();
       final adsToday = await GameDataService.instance.getAdsWatchedToday();
       final totalAds = await GameDataService.instance.getTotalAdsWatched();
       if (!mounted) return;
