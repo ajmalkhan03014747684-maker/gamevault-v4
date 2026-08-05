@@ -22,7 +22,7 @@ class AdminStats {
 
 /// All admin operations. Every method here should only ever be reached
 /// after AuthService.getCurrentUserRole() == 'admin' has already been
-/// checked by the calling screen — the REAL security is the RLS
+/// checked by the calling screen â€” the REAL security is the RLS
 /// policies on each table, not this UI-level gate.
 class AdminService {
   AdminService._();
@@ -74,8 +74,40 @@ class AdminService {
     }
   }
 
+  /// Rejects a payout request AND refunds the balance that was
+  /// deducted when the user submitted it â€” without this, a rejected
+  /// withdrawal permanently destroys the user's currency, which is a
+  /// serious bug for a real rewards app, not a cosmetic one.
   Future<void> rejectPayout(String requestId, String reason) async {
     try {
+      final request = await supabase
+          .from('payout_requests')
+          .select('user_id, game_id, amount, status')
+          .eq('id', requestId)
+          .single();
+
+      if (request['status'] != 'pending') {
+        throw AdminException('This request was already processed.');
+      }
+
+      final userId = request['user_id'] as String;
+      final gameId = request['game_id'] as String;
+      final amount = (request['amount'] as num).toDouble();
+
+      final balanceRow = await supabase
+          .from('user_game_balances')
+          .select('balance')
+          .eq('user_id', userId)
+          .eq('game_id', gameId)
+          .maybeSingle();
+      final currentBalance = (balanceRow?['balance'] as num?)?.toDouble() ?? 0;
+
+      await supabase.from('user_game_balances').upsert({
+        'user_id': userId,
+        'game_id': gameId,
+        'balance': currentBalance + amount,
+      });
+
       await supabase.from('payout_requests').update({
         'status': 'rejected',
         'rejection_reason': reason,
