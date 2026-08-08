@@ -103,8 +103,11 @@ class _RootFlowState extends State<RootFlow> {
   _Step _step = _Step.splash;
   GameInfo? _selectedGame;
   List<GameInfo> _availableGames = [];
-  int _adsWatched = 42;
-  final int _adsRequired = 60;
+  // Transient — filled in by Game Details with REAL per-game data
+  // right before handing off to the ad flow. No fake shared counter.
+  int _pendingCurrentAds = 0;
+  int _pendingAdsRequired = 0;
+  double _pendingRewardAmount = 0;
 
   void _goToNavTab(int i) {
     switch (i) {
@@ -130,7 +133,7 @@ class _RootFlowState extends State<RootFlow> {
   /// Checks the PERSISTED cooldown first — this is the actual fix.
   /// If a cooldown is still active, route to the Cooldown screen
   /// instead of letting them watch another ad.
-  Future<void> _handleWatchAdRequested() async {
+  Future<void> _handleWatchAdRequested(int currentAds, int adsRequired, double rewardAmount) async {
     final activeCooldown = await CooldownStorage.getCooldownEnd();
     if (activeCooldown != null) {
       if (!mounted) return;
@@ -138,7 +141,12 @@ class _RootFlowState extends State<RootFlow> {
       return;
     }
     if (!mounted) return;
-    setState(() => _step = _Step.adWatch);
+    setState(() {
+      _pendingCurrentAds = currentAds;
+      _pendingAdsRequired = adsRequired;
+      _pendingRewardAmount = rewardAmount;
+      _step = _Step.adWatch;
+    });
   }
 
   /// Where the hardware/gesture back button should send the user for
@@ -251,20 +259,19 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.gameDetails:
         return GameDetailsScreen(
           game: _selectedGame!,
-          adsWatched: _adsWatched,
-          adsRequired: _adsRequired,
+          gameId: _selectedGame!.name,
           onBack: () => setState(() => _step = _Step.selectGame),
           onWatchAd: _handleWatchAdRequested,
         );
 
       case _Step.adWatch:
         return AdWatchScreen(
-          currentAds: _adsWatched,
-          requiredAds: _adsRequired,
+          currentAds: _pendingCurrentAds,
+          requiredAds: _pendingAdsRequired,
           gameId: _selectedGame!.name,
-          rewardAmount: 0.02,
+          rewardAmount: _pendingRewardAmount,
           onAdComplete: () => setState(() {
-            _adsWatched += 1;
+            _pendingCurrentAds += 1;
             _step = _Step.reward;
           }),
           onAdFailed: () => setState(() => _step = _Step.gameDetails),
@@ -272,8 +279,8 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.reward:
         return RewardSuccessScreen(
-          newAds: _adsWatched,
-          requiredAds: _adsRequired,
+          newAds: _pendingCurrentAds,
+          requiredAds: _pendingAdsRequired,
           onContinue: () async {
             final end = DateTime.now().add(const Duration(minutes: 1, seconds: 15));
             await CooldownStorage.setCooldownEnd(end);
