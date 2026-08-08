@@ -57,6 +57,75 @@ class GameDataService {
     }
   }
 
+  /// Reads the admin-configured daily ad limit (0 = unlimited).
+  /// Lives here (not just in AdminService) so any screen — not only
+  /// the Admin Panel — can check it before letting a user watch
+  /// another ad.
+  Future<int> getDailyAdLimit() async {
+    try {
+      final row = await supabase
+          .from('app_settings')
+          .select('value')
+          .eq('key', 'daily_ad_limit')
+          .maybeSingle();
+      if (row == null) return 0;
+      return int.tryParse(row['value']?.toString() ?? '0') ?? 0;
+    } catch (e) {
+      return 0; // unlimited if unreadable — never blocks users on error
+    }
+  }
+
+  /// True if the user has hit today's admin-configured limit.
+  /// 0 limit always means unlimited.
+  Future<bool> hasReachedDailyLimit() async {
+    final limit = await getDailyAdLimit();
+    if (limit <= 0) return false;
+    final watchedToday = await getAdsWatchedToday();
+    return watchedToday >= limit;
+  }
+
+  /// Ads watched for a SPECIFIC game (not global) — needed so Game
+  /// Details can show real per-game progress against real thresholds,
+  /// instead of a fake shared counter.
+  Future<int> getAdsWatchedForGame(String gameId) async {
+    final uid = _uid;
+    if (uid == null) return 0;
+    try {
+      final rows = await supabase.from('ad_watches').select('id').eq('user_id', uid).eq('game_id', gameId);
+      return (rows as List).length;
+    } catch (e) {
+      throw GameDataException('Could not load ads watched for this game: $e');
+    }
+  }
+
+  /// The next active ad_thresholds tier the user hasn't reached yet
+  /// for this game — this is what makes Admin Panel's Ad Thresholds
+  /// screen actually control the app instead of being disconnected
+  /// from it. Returns null if no active thresholds exist for the game
+  /// (caller should show a sensible fallback).
+  Future<Map<String, dynamic>?> getNextThreshold(String gameId, int currentAdsForGame) async {
+    try {
+      final rows = await supabase
+          .from('ad_thresholds')
+          .select()
+          .eq('game_id', gameId)
+          .eq('is_active', true)
+          .order('ads_required', ascending: true);
+      final list = List<Map<String, dynamic>>.from(rows as List);
+      for (final t in list) {
+        final required = (t['ads_required'] as num?)?.toInt() ?? 0;
+        if (required > currentAdsForGame) return t;
+      }
+      // All tiers reached, or list non-empty but none higher — return
+      // the highest tier so the screen still shows something sensible
+      // rather than nothing.
+      return list.isNotEmpty ? list.last : null;
+    } catch (e) {
+      throw GameDataException('Could not load reward tiers: $e');
+    }
+  }
+
+
   /// Total ads watched all-time, for the current user.
   Future<int> getTotalAdsWatched() async {
     final uid = _uid;
@@ -100,22 +169,42 @@ class GameDataService {
     }
   }
 
-  /// Submits a withdrawal request for admin review.
+  /// Submits a withdrawal request for admin review. Matches the
+  /// original app's exact behavior: the balance is deducted
+  /// IMMEDIATELY on request (not on approval) — if the admin rejects
+  /// it, AdminService.rejectPayout refunds it back. This prevents a
+  /// user from requesting the same balance twice while a request is
+  /// pending.
   Future<void> submitWithdrawRequest({
     required String gameId,
     required double amount,
     required String gameUid,
+    required String gameUsername,
   }) async {
     final uid = _uid;
     if (uid == null) throw GameDataException('Not logged in.');
     try {
+      final currentBalance = await getBalance(gameId);
+      if (currentBalance < amount) {
+        throw GameDataException('Insufficient balance for this withdrawal.');
+      }
+
+      await supabase.from('user_game_balances').upsert({
+        'user_id': uid,
+        'game_id': gameId,
+        'balance': currentBalance - amount,
+      });
+
       await supabase.from('payout_requests').insert({
         'user_id': uid,
         'game_id': gameId,
         'amount': amount,
         'game_uid': gameUid,
+        'game_username': gameUsername,
         'status': 'pending',
       });
+    } on GameDataException {
+      rethrow;
     } catch (e) {
       throw GameDataException('Could not submit withdrawal: $e');
     }
