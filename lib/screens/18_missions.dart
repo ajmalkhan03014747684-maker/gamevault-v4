@@ -20,6 +20,7 @@ class MissionsScreen extends StatefulWidget {
 class _MissionsScreenState extends State<MissionsScreen> {
   List<MissionProgress> _progress = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -28,17 +29,40 @@ class _MissionsScreenState extends State<MissionsScreen> {
   }
 
   Future<void> _load() async {
-    final data = await MissionsService.instance.getAllProgress();
-    if (!mounted) return;
     setState(() {
-      _progress = data;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      final data = await MissionsService.instance.getAllProgress();
+      if (!mounted) return;
+      setState(() {
+        _progress = data;
+        _loading = false;
+      });
+    } on MissionsException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _claim(String missionId) async {
-    await MissionsService.instance.claim(missionId);
-    await _load();
+    try {
+      final credited = await MissionsService.instance.claim(missionId);
+      if (!mounted) return;
+      if (credited > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('+${credited.toStringAsFixed(2)} claimed!', style: AppText.body(color: Colors.white))),
+        );
+      }
+      await _load();
+    } on MissionsException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   String _periodLabel(MissionPeriod p) {
@@ -81,6 +105,16 @@ class _MissionsScreenState extends State<MissionsScreen> {
                     ],
                   ),
                   const SizedBox(height: 20),
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Text(_error!, style: AppText.caption(size: 12, color: AppColors.dangerRed)),
+                    ),
+                  if (_progress.isEmpty && _error == null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(child: Text('No missions available right now', style: AppText.caption())),
+                    ),
                   ..._progress.map((mp) => Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: GlassCard(
