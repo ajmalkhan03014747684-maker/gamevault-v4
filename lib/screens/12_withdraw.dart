@@ -24,6 +24,7 @@ class WithdrawScreen extends StatefulWidget {
 
 class _WithdrawScreenState extends State<WithdrawScreen> {
   final _uidController = TextEditingController();
+  final _usernameController = TextEditingController();
   bool _submitting = false;
   bool _loadingBalance = true;
   double _balance = 0.0;
@@ -53,8 +54,8 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   }
 
   Future<void> _submit() async {
-    if (_uidController.text.trim().isEmpty) {
-      setState(() => _errorMessage = 'Please enter your game UID.');
+    if (_uidController.text.trim().isEmpty || _usernameController.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Please enter your game UID and in-game username.');
       return;
     }
 
@@ -68,6 +69,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
         gameId: widget.game.name,
         amount: _balance,
         gameUid: _uidController.text.trim(),
+        gameUsername: _usernameController.text.trim(),
       );
       if (!mounted) return;
       setState(() => _submitting = false);
@@ -84,6 +86,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
   @override
   void dispose() {
     _uidController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -135,6 +138,12 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               hint: 'Enter ${widget.game.name} UID',
               icon: Icons.badge_outlined,
               controller: _uidController,
+            ),
+            const SizedBox(height: 14),
+            CyberTextField(
+              hint: 'Enter your in-game username',
+              icon: Icons.person_outline_rounded,
+              controller: _usernameController,
             ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 10),
