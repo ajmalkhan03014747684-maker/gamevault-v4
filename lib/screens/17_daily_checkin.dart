@@ -5,9 +5,9 @@ import '../widgets/gradient_button.dart';
 import '../services/daily_checkin_service.dart';
 
 /// Screen — Daily Check-in
-/// 30-day cycle, each day can have its own reward amount (admin
-/// configurable once Supabase is wired — currently uses the local
-/// default schedule in DailyCheckinService).
+/// Now fully real: 30-day schedule and streak tracking both come from
+/// Supabase. This is what makes Admin Panel's Daily Check-in Schedule
+/// screen actually control what users see and earn.
 class DailyCheckinScreen extends StatefulWidget {
   final VoidCallback onBack;
   const DailyCheckinScreen({super.key, required this.onBack});
@@ -21,6 +21,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   bool _claimedToday = false;
   bool _loading = true;
   bool _claiming = false;
+  String? _error;
 
   @override
   void initState() {
@@ -29,21 +30,45 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
   }
 
   Future<void> _load() async {
-    final status = await DailyCheckinService.instance.getStatus();
-    if (!mounted) return;
     setState(() {
-      _currentDay = status.currentDay;
-      _claimedToday = status.claimedToday;
-      _loading = false;
+      _loading = true;
+      _error = null;
     });
+    try {
+      await DailyCheckinService.instance.preloadSchedule();
+      final status = await DailyCheckinService.instance.getStatus();
+      if (!mounted) return;
+      setState(() {
+        _currentDay = status.currentDay;
+        _claimedToday = status.claimedToday;
+        _loading = false;
+      });
+    } on DailyCheckinException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _claim() async {
     setState(() => _claiming = true);
-    await DailyCheckinService.instance.claimToday();
-    if (!mounted) return;
-    setState(() => _claiming = false);
-    await _load();
+    try {
+      final credited = await DailyCheckinService.instance.claimToday();
+      if (!mounted) return;
+      setState(() => _claiming = false);
+      if (credited > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('+${credited.toStringAsFixed(2)} claimed!', style: AppText.body(color: Colors.white))),
+        );
+      }
+      await _load();
+    } on DailyCheckinException catch (e) {
+      if (!mounted) return;
+      setState(() => _claiming = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -65,6 +90,10 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text('Day $_currentDay of 30 — come back every day!', style: AppText.caption()),
+                  if (_error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(_error!, style: AppText.caption(size: 12, color: AppColors.dangerRed)),
+                  ],
                   const SizedBox(height: 20),
                   GridView.builder(
                     shrinkWrap: true,
@@ -80,7 +109,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                       final day = i + 1;
                       final isPast = day < _currentDay;
                       final isToday = day == _currentDay;
-                      final reward = DailyCheckinService.instance.rewardForDay(day);
+                      final reward = DailyCheckinService.instance.cachedReward(day);
 
                       Color bg;
                       Color border;
@@ -122,7 +151,7 @@ class _DailyCheckinScreenState extends State<DailyCheckinScreen> {
                         Text('Today\'s Reward', style: AppText.caption()),
                         const SizedBox(height: 6),
                         Text(
-                          '${DailyCheckinService.instance.rewardForDay(_currentDay).toStringAsFixed(2)} 💎',
+                          '${DailyCheckinService.instance.cachedReward(_currentDay).toStringAsFixed(2)} 💎',
                           style: AppText.heading(size: 24),
                         ),
                       ],
