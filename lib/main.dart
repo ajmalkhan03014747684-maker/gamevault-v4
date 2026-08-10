@@ -31,6 +31,10 @@ import 'screens/admin/admin_users_screen.dart';
 import 'screens/admin/admin_thresholds_screen.dart';
 import 'screens/admin/admin_referral_configs_screen.dart';
 import 'screens/admin/admin_withdraw_req_screen.dart';
+import 'screens/profile/edit_profile_screen.dart';
+import 'screens/profile/security_screen.dart';
+import 'screens/profile/language_screen.dart';
+import 'screens/profile/notification_settings_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
 import 'screens/admin/admin_danger_zone_screen.dart';
 
@@ -97,6 +101,10 @@ enum _Step {
   adminThresholds,
   adminReferralConfigs,
   adminWithdrawReq,
+  editProfile,
+  security,
+  language,
+  notificationSettings,
 }
 
 class _RootFlowState extends State<RootFlow> {
@@ -192,6 +200,12 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.adminReferralConfigs:
       case _Step.adminWithdrawReq:
         setState(() => _step = _Step.adminDashboard);
+        break;
+      case _Step.editProfile:
+      case _Step.security:
+      case _Step.language:
+      case _Step.notificationSettings:
+        setState(() => _step = _Step.profile);
         break;
       case _Step.adminDashboard:
         setState(() => _step = _Step.profile);
@@ -322,6 +336,10 @@ class _RootFlowState extends State<RootFlow> {
         return ProfileScreen(
           onNavTap: _goToNavTab,
           onAdminTapped: () => setState(() => _step = _Step.adminDashboard),
+          onEditProfileTapped: () => setState(() => _step = _Step.editProfile),
+          onSecurityTapped: () => setState(() => _step = _Step.security),
+          onNotificationsTapped: () => setState(() => _step = _Step.notificationSettings),
+          onLanguageTapped: () => setState(() => _step = _Step.language),
         );
 
       case _Step.wallet:
@@ -437,6 +455,26 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.adminWithdrawReq:
         return AdminWithdrawReqScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.editProfile:
+        return EditProfileScreen(
+          onBack: () => setState(() => _step = _Step.profile),
+        );
+
+      case _Step.security:
+        return SecurityScreen(
+          onBack: () => setState(() => _step = _Step.profile),
+        );
+
+      case _Step.language:
+        return LanguageScreen(
+          onBack: () => setState(() => _step = _Step.profile),
+        );
+
+      case _Step.notificationSettings:
+        return NotificationSettingsScreen(
+          onBack: () => setState(() => _step = _Step.profile),
         );
     }
   }
