@@ -165,10 +165,19 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
 
                 OutlineButton(
                   label: 'Continue as Guest',
-                  onPressed: () {
-                    // TODO: wire Supabase anonymous sign-in once enabled
-                    // in your project's Auth settings.
-                    widget.onLoginSuccess();
+                  onPressed: () async {
+                    setState(() {
+                      _loading = true;
+                      _errorMessage = null;
+                    });
+                    final result = await AuthService.instance.signInAsGuest();
+                    if (!mounted) return;
+                    setState(() => _loading = false);
+                    if (result.success) {
+                      widget.onLoginSuccess();
+                    } else {
+                      setState(() => _errorMessage = result.errorMessage ?? 'Could not start guest session.');
+                    }
                   },
                 ),
                 const SizedBox(height: 24),
