@@ -4,16 +4,27 @@ import '../widgets/glass_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/connection_status_dot.dart';
 import '../services/auth_service.dart';
+import '../services/game_data_service.dart';
 
 /// Screen 10 — Profile
-/// Now checks the real user role and shows an Admin Panel entry row
-/// only for actual admins — no hidden gestures or hardcoded taps
-/// needed, and the row simply doesn't render for regular users.
+/// Real username, real stats, real admin role check.
 class ProfileScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final VoidCallback onAdminTapped;
+  final VoidCallback onEditProfileTapped;
+  final VoidCallback onSecurityTapped;
+  final VoidCallback onNotificationsTapped;
+  final VoidCallback onLanguageTapped;
 
-  const ProfileScreen({super.key, required this.onNavTap, required this.onAdminTapped});
+  const ProfileScreen({
+    super.key,
+    required this.onNavTap,
+    required this.onAdminTapped,
+    required this.onEditProfileTapped,
+    required this.onSecurityTapped,
+    required this.onNotificationsTapped,
+    required this.onLanguageTapped,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -21,17 +32,48 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isAdmin = false;
+  bool _loading = true;
+  String _username = 'Player';
+  int _totalAds = 0;
+  double _totalEarned = 0;
+  String _memberSince = '';
 
   @override
   void initState() {
     super.initState();
-    _checkAdmin();
+    _load();
   }
 
-  Future<void> _checkAdmin() async {
-    final role = await AuthService.instance.getCurrentUserRole();
-    if (!mounted) return;
-    setState(() => _isAdmin = role == 'admin');
+  Future<void> _load() async {
+    try {
+      final role = await AuthService.instance.getCurrentUserRole();
+      final profile = await AuthService.instance.getProfile();
+      final totalAds = await GameDataService.instance.getTotalAdsWatched();
+      final totalEarned = await GameDataService.instance.getTotalBalance();
+
+      String memberSince = '';
+      final createdAtStr = AuthService.instance.currentUser?.createdAt;
+      if (createdAtStr != null) {
+        final date = DateTime.tryParse(createdAtStr);
+        if (date != null) {
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          memberSince = '${months[date.month - 1]} ${date.year}';
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _isAdmin = role == 'admin';
+        _username = (profile['username'] as String?) ?? 'Player';
+        _totalAds = totalAds;
+        _totalEarned = totalEarned;
+        _memberSince = memberSince;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
   }
 
   @override
@@ -42,65 +84,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  Center(
-                    child: Column(
+              child: RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 84,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: AppGradients.primaryButton,
+                              boxShadow: [
+                                BoxShadow(color: AppColors.primaryPurple.withOpacity(0.4), blurRadius: 20),
+                              ],
+                            ),
+                            child: const Icon(Icons.person_rounded, color: Colors.white, size: 42),
+                          ),
+                          const SizedBox(height: 14),
+                          _loading
+                              ? const SizedBox(width: 100, height: 20, child: LinearProgressIndicator())
+                              : Text(_username, style: AppText.heading(size: 20)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
                       children: [
-                        Container(
-                          width: 84,
-                          height: 84,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: AppGradients.primaryButton,
-                            boxShadow: [
-                              BoxShadow(color: AppColors.primaryPurple.withOpacity(0.4), blurRadius: 20),
-                            ],
-                          ),
-                          child: const Icon(Icons.person_rounded, color: Colors.white, size: 42),
-                        ),
-                        const SizedBox(height: 14),
-                        Text('Player123', style: AppText.heading(size: 20)),
-                        const SizedBox(height: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryPurple.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(AppRadius.chip),
-                          ),
-                          child: Text('Level 12', style: AppText.caption(size: 12, color: AppColors.primaryPurple)),
-                        ),
-                        const SizedBox(height: 6),
-                        Text('UID: 1234567890', style: AppText.caption(size: 12)),
+                        Expanded(child: _StatCol(label: 'Total Ads', value: '$_totalAds')),
+                        Expanded(child: _StatCol(label: 'Total Earned', value: '${_totalEarned.toStringAsFixed(2)} 💎')),
+                        Expanded(child: _StatCol(label: 'Member Since', value: _memberSince.isNotEmpty ? _memberSince : '—')),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(child: _StatCol(label: 'Total Ads', value: '812')),
-                      Expanded(child: _StatCol(label: 'Total Earned', value: '520 💎')),
-                      Expanded(child: _StatCol(label: 'Member Since', value: 'May 2024')),
+                    const SizedBox(height: 24),
+                    _MenuRow(icon: Icons.edit_rounded, label: 'Edit Profile', onTap: widget.onEditProfileTapped),
+                    _MenuRow(icon: Icons.security_rounded, label: 'Security', onTap: widget.onSecurityTapped),
+                    _MenuRow(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: widget.onNotificationsTapped),
+                    _MenuRow(icon: Icons.language_rounded, label: 'Language', onTap: widget.onLanguageTapped),
+                    if (_isAdmin) ...[
+                      const SizedBox(height: 8),
+                      _MenuRow(
+                        icon: Icons.admin_panel_settings_rounded,
+                        label: 'Admin Panel',
+                        onTap: widget.onAdminTapped,
+                        highlight: true,
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  _MenuRow(icon: Icons.edit_rounded, label: 'Edit Profile', onTap: () {}),
-                  _MenuRow(icon: Icons.security_rounded, label: 'Security', onTap: () {}),
-                  _MenuRow(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: () {}),
-                  _MenuRow(icon: Icons.language_rounded, label: 'Language', trailing: 'English', onTap: () {}),
-                  if (_isAdmin) ...[
-                    const SizedBox(height: 8),
-                    _MenuRow(
-                      icon: Icons.admin_panel_settings_rounded,
-                      label: 'Admin Panel',
-                      onTap: widget.onAdminTapped,
-                      highlight: true,
-                    ),
+                    const SizedBox(height: 20),
+                    Center(child: const ConnectionStatusDot()),
                   ],
-                  const SizedBox(height: 20),
-                  Center(child: const ConnectionStatusDot()),
-                ],
+                ),
               ),
             ),
             BottomNavBar(currentIndex: 4, onTap: widget.onNavTap),
