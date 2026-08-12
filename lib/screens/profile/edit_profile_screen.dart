@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
-import '../widgets/cyber_text_field.dart';
-import '../widgets/gradient_button.dart';
-import '../services/auth_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/cyber_text_field.dart';
+import '../../widgets/gradient_button.dart';
+import '../../services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final VoidCallback onBack;
