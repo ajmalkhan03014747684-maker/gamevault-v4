@@ -8,20 +8,21 @@ class GameDataException implements Exception {
   String toString() => message;
 }
 
-/// Real data layer, replacing the static placeholder numbers used
-/// throughout the app so far. Wraps Supabase calls with clear error
-/// messages — since some table/column names were reconstructed from
-/// the old HTML file rather than a live schema, a query here failing
-/// at runtime with a specific Postgrest error is expected the first
-/// time; the error text will point at exactly what needs fixing.
+/// Real data layer for Supabase-backed app state.
+///
+/// FIX: ad_watches' real timestamp column is `watched_at`, not
+/// `created_at` (confirmed against the live schema) â€” every query
+/// that used to reference `created_at` on this table now uses
+/// `watched_at`, and every insert now sets it explicitly so a
+/// record is never missing a timestamp regardless of the column's
+/// database default.
 class GameDataService {
   GameDataService._();
   static final GameDataService instance = GameDataService._();
 
   String? get _uid => AuthService.instance.currentUser?.id;
 
-  /// Balance for a specific game (by game id/name — adjust the filter
-  /// column below to match your real user_game_balances schema).
+  /// Balance for a specific game (by game id).
   Future<double> getBalance(String gameId) async {
     final uid = _uid;
     if (uid == null) return 0;
@@ -50,7 +51,7 @@ class GameDataService {
           .from('ad_watches')
           .select('id')
           .eq('user_id', uid)
-          .gte('created_at', startOfDay);
+          .gte('watched_at', startOfDay);
       return (rows as List).length;
     } catch (e) {
       throw GameDataException('Could not load today\'s ad count: $e');
@@ -58,9 +59,6 @@ class GameDataService {
   }
 
   /// Reads the admin-configured daily ad limit (0 = unlimited).
-  /// Lives here (not just in AdminService) so any screen — not only
-  /// the Admin Panel — can check it before letting a user watch
-  /// another ad.
   Future<int> getDailyAdLimit() async {
     try {
       final row = await supabase
@@ -71,12 +69,11 @@ class GameDataService {
       if (row == null) return 0;
       return int.tryParse(row['value']?.toString() ?? '0') ?? 0;
     } catch (e) {
-      return 0; // unlimited if unreadable — never blocks users on error
+      return 0; // unlimited if unreadable â€” never blocks users on error
     }
   }
 
   /// True if the user has hit today's admin-configured limit.
-  /// 0 limit always means unlimited.
   Future<bool> hasReachedDailyLimit() async {
     final limit = await getDailyAdLimit();
     if (limit <= 0) return false;
@@ -84,9 +81,7 @@ class GameDataService {
     return watchedToday >= limit;
   }
 
-  /// Ads watched for a SPECIFIC game (not global) — needed so Game
-  /// Details can show real per-game progress against real thresholds,
-  /// instead of a fake shared counter.
+  /// Ads watched for a SPECIFIC game (not global).
   Future<int> getAdsWatchedForGame(String gameId) async {
     final uid = _uid;
     if (uid == null) return 0;
@@ -98,11 +93,7 @@ class GameDataService {
     }
   }
 
-  /// The next active ad_thresholds tier the user hasn't reached yet
-  /// for this game — this is what makes Admin Panel's Ad Thresholds
-  /// screen actually control the app instead of being disconnected
-  /// from it. Returns null if no active thresholds exist for the game
-  /// (caller should show a sensible fallback).
+  /// The next active ad_thresholds tier the user hasn't reached yet.
   Future<Map<String, dynamic>?> getNextThreshold(String gameId, int currentAdsForGame) async {
     try {
       final rows = await supabase
@@ -116,15 +107,11 @@ class GameDataService {
         final required = (t['ads_required'] as num?)?.toInt() ?? 0;
         if (required > currentAdsForGame) return t;
       }
-      // All tiers reached, or list non-empty but none higher — return
-      // the highest tier so the screen still shows something sensible
-      // rather than nothing.
       return list.isNotEmpty ? list.last : null;
     } catch (e) {
       throw GameDataException('Could not load reward tiers: $e');
     }
   }
-
 
   /// Total ads watched all-time, for the current user.
   Future<int> getTotalAdsWatched() async {
@@ -138,9 +125,9 @@ class GameDataService {
     }
   }
 
-  /// Call this when an ad finishes successfully. Logs the watch and
-  /// credits the reward to the user's balance for that game.
-  /// Returns the new balance.
+  /// Call this when an ad finishes successfully. Logs the watch (with
+  /// an explicit watched_at timestamp) and credits the reward to the
+  /// user's balance for that game. Returns the new balance.
   Future<double> recordAdWatchAndCredit({
     required String gameId,
     required double rewardAmount,
@@ -152,6 +139,7 @@ class GameDataService {
       await supabase.from('ad_watches').insert({
         'user_id': uid,
         'game_id': gameId,
+        'watched_at': DateTime.now().toIso8601String(),
       });
 
       final current = await getBalance(gameId);
@@ -169,12 +157,7 @@ class GameDataService {
     }
   }
 
-  /// Submits a withdrawal request for admin review. Matches the
-  /// original app's exact behavior: the balance is deducted
-  /// IMMEDIATELY on request (not on approval) — if the admin rejects
-  /// it, AdminService.rejectPayout refunds it back. This prevents a
-  /// user from requesting the same balance twice while a request is
-  /// pending.
+  /// Submits a withdrawal request for admin review.
   Future<void> submitWithdrawRequest({
     required String gameId,
     required double amount,
@@ -226,8 +209,7 @@ class GameDataService {
     }
   }
 
-  /// Live leaderboard from the SQL view — ranked by ads watched today,
-  /// currency as tiebreaker (see leaderboard_view in the schema).
+  /// Live leaderboard from the SQL view.
   Future<List<Map<String, dynamic>>> getLeaderboard() async {
     try {
       final rows = await supabase
@@ -241,9 +223,7 @@ class GameDataService {
     }
   }
 
-  /// Active games list — this is what makes Admin Panel's "Manage
-  /// Games" toggle actually mean something; before this, the app used
-  /// a hardcoded 6-game list that ignored is_active entirely.
+  /// Active games list.
   Future<List<Map<String, dynamic>>> getActiveGames() async {
     try {
       final rows = await supabase.from('games').select().eq('is_active', true).order('name');
@@ -269,6 +249,9 @@ class GameDataService {
     }
   }
 
+  /// FIX: referrals' real reward column is `reward_paid`, not
+  /// `reward_amount` â€” the old code silently read a nonexistent
+  /// field and always summed to 0.
   Future<Map<String, dynamic>> getReferralStats() async {
     final uid = _uid;
     if (uid == null) return {'total_referrals': 0, 'total_earned': 0.0};
@@ -277,7 +260,7 @@ class GameDataService {
       final list = rows as List;
       double totalEarned = 0;
       for (final r in list) {
-        totalEarned += (r['reward_amount'] as num?)?.toDouble() ?? 0;
+        totalEarned += (r['reward_paid'] as num?)?.toDouble() ?? 0;
       }
       return {'total_referrals': list.length, 'total_earned': totalEarned};
     } catch (e) {
@@ -297,7 +280,6 @@ class GameDataService {
       final existing = row?['referral_code'] as String?;
       if (existing != null && existing.isNotEmpty) return existing;
 
-      // Generate one if this user doesn't have one yet.
       final generated = 'GAMEVAULT${uid.substring(0, 6).toUpperCase()}';
       await supabase.from('user_profiles').update({'referral_code': generated}).eq('id', uid);
       return generated;
@@ -315,9 +297,7 @@ class GameDataService {
     }
   }
 
-  /// Sum of balances across all games for this user — used for Home
-  /// Dashboard's "Total Balance" card, which previously showed a
-  /// static "260" regardless of real data.
+  /// Sum of balances across all games for this user.
   Future<double> getTotalBalance() async {
     final uid = _uid;
     if (uid == null) return 0;
