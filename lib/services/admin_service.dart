@@ -75,9 +75,7 @@ class AdminService {
   }
 
   /// Rejects a payout request AND refunds the balance that was
-  /// deducted when the user submitted it â€” without this, a rejected
-  /// withdrawal permanently destroys the user's currency, which is a
-  /// serious bug for a real rewards app, not a cosmetic one.
+  /// deducted when the user submitted it.
   Future<void> rejectPayout(String requestId, String reason) async {
     try {
       final request = await supabase
@@ -185,9 +183,32 @@ class AdminService {
     }
   }
 
-  Future<void> updateCheckinDay(int dayNumber, double rewardAmount) async {
+  /// The app's existing currency system is per-game (games.currency_name).
+  /// This returns the distinct currency names currently in use, so the
+  /// Check-In Schedule editor can offer a picker instead of free text.
+  Future<List<String>> getCurrencyOptions() async {
     try {
-      await supabase.from('daily_checkin_schedule').update({'reward_amount': rewardAmount}).eq('day_number', dayNumber);
+      final rows = await supabase.from('games').select('currency_name');
+      final names = (rows as List)
+          .map((r) => (r['currency_name'] as String?)?.trim() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toSet()
+          .toList();
+      names.sort();
+      return names;
+    } catch (e) {
+      throw AdminException('Could not load currency options: $e');
+    }
+  }
+
+  /// FIX: now also writes currency_id (the column already existed in
+  /// the schema â€” it just wasn't being set from the UI before).
+  Future<void> updateCheckinDay(int dayNumber, double rewardAmount, String currencyId) async {
+    try {
+      await supabase.from('daily_checkin_schedule').update({
+        'reward_amount': rewardAmount,
+        'currency_id': currencyId,
+      }).eq('day_number', dayNumber);
     } catch (e) {
       throw AdminException('Could not update day $dayNumber: $e');
     }
@@ -210,17 +231,43 @@ class AdminService {
     required String period,
     required int goalCount,
     required double rewardAmount,
+    String goalType = 'ads_watched',
   }) async {
     try {
       await supabase.from('missions').insert({
         'title': title,
         'period': period,
+        'goal_type': goalType,
         'goal_count': goalCount,
         'reward_amount': rewardAmount,
         'is_active': true,
       });
     } catch (e) {
       throw AdminException('Could not create mission: $e');
+    }
+  }
+
+  /// Full edit support for an existing mission â€” previously missing;
+  /// admins could only toggle active/inactive or delete, not correct
+  /// a typo or adjust a goal/reward without deleting and recreating.
+  Future<void> updateMission(
+    String missionId, {
+    required String title,
+    required String period,
+    required int goalCount,
+    required double rewardAmount,
+    required String goalType,
+  }) async {
+    try {
+      await supabase.from('missions').update({
+        'title': title,
+        'period': period,
+        'goal_type': goalType,
+        'goal_count': goalCount,
+        'reward_amount': rewardAmount,
+      }).eq('id', missionId);
+    } catch (e) {
+      throw AdminException('Could not update mission: $e');
     }
   }
 
