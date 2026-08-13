@@ -44,13 +44,19 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
     }
   }
 
-  Future<void> _createMission() async {
-    final titleController = TextEditingController();
-    final goalController = TextEditingController();
-    final rewardController = TextEditingController();
-    String period = 'daily';
+  /// Handles both create (existing == null) and edit (existing != null)
+  /// through one dialog â€” this is what makes mission "Update" possible;
+  /// previously only toggle-active and delete existed.
+  Future<void> _openForm({Map<String, dynamic>? existing}) async {
+    final titleController = TextEditingController(text: existing?['title'] as String? ?? '');
+    final goalController = TextEditingController(text: (existing?['goal_count'] ?? '').toString());
+    final rewardController = TextEditingController(
+      text: existing != null ? (existing['reward_amount'] as num?)?.toString() ?? '' : '',
+    );
+    String period = (existing?['period'] as String?) ?? 'daily';
+    String goalType = (existing?['goal_type'] as String?) ?? 'ads_watched';
 
-    final created = await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
@@ -63,10 +69,12 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('New Mission', style: AppText.body(size: 16, weight: FontWeight.w700)),
+                  Text(existing == null ? 'New Mission' : 'Edit Mission', style: AppText.body(size: 16, weight: FontWeight.w700)),
                   const SizedBox(height: 12),
                   _dialogField(titleController, 'Title (e.g. Watch 5 ads today)'),
                   const SizedBox(height: 10),
+                  Text('Period', style: AppText.caption(size: 12)),
+                  const SizedBox(height: 6),
                   Row(
                     children: ['daily', 'weekly', 'monthly'].map((p) {
                       final active = period == p;
@@ -82,6 +90,32 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                             ),
                             alignment: Alignment.center,
                             child: Text(p, style: AppText.caption(size: 11, color: active ? Colors.white : AppColors.muted)),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Goal type', style: AppText.caption(size: 12)),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      ('ads_watched', 'Ads Watched'),
+                      ('referrals', 'Referrals'),
+                    ].map((entry) {
+                      final active = goalType == entry.$1;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setDialogState(() => goalType = entry.$1),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: active ? AppColors.primaryPurple : AppColors.surface2,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(entry.$2, style: AppText.caption(size: 11, color: active ? Colors.white : AppColors.muted)),
                           ),
                         ),
                       );
@@ -104,7 +138,7 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                         child: ElevatedButton(
                           onPressed: () => Navigator.pop(context, true),
                           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryPurple),
-                          child: const Text('Create'),
+                          child: Text(existing == null ? 'Create' : 'Save'),
                         ),
                       ),
                     ],
@@ -117,18 +151,30 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
       ),
     );
 
-    if (created != true) return;
+    if (saved != true) return;
     final goalCount = int.tryParse(goalController.text) ?? 1;
     final reward = double.tryParse(rewardController.text) ?? 0.0;
     if (titleController.text.trim().isEmpty) return;
 
     try {
-      await AdminService.instance.createMission(
-        title: titleController.text.trim(),
-        period: period,
-        goalCount: goalCount,
-        rewardAmount: reward,
-      );
+      if (existing == null) {
+        await AdminService.instance.createMission(
+          title: titleController.text.trim(),
+          period: period,
+          goalCount: goalCount,
+          rewardAmount: reward,
+          goalType: goalType,
+        );
+      } else {
+        await AdminService.instance.updateMission(
+          existing['id'] as String,
+          title: titleController.text.trim(),
+          period: period,
+          goalCount: goalCount,
+          rewardAmount: reward,
+          goalType: goalType,
+        );
+      }
       await _load();
     } on AdminException catch (e) {
       if (!mounted) return;
@@ -187,7 +233,7 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                   const SizedBox(width: 14),
                   Expanded(child: Text('Missions', style: AppText.heading(size: 20))),
                   GestureDetector(
-                    onTap: _createMission,
+                    onTap: () => _openForm(),
                     child: const Icon(Icons.add_circle_rounded, color: AppColors.primaryPurple, size: 26),
                   ),
                 ],
@@ -208,7 +254,7 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                             children: [
                               Text('No missions yet', style: AppText.caption()),
                               const SizedBox(height: 12),
-                              GradientButton(label: 'Create First Mission', onPressed: _createMission),
+                              GradientButton(label: 'Create First Mission', onPressed: () => _openForm()),
                             ],
                           ),
                         )
@@ -228,6 +274,7 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                               final active = (m['is_active'] as bool?) ?? true;
 
                               return GlassCard(
+                                onTap: () => _openForm(existing: m),
                                 child: Row(
                                   children: [
                                     Expanded(
@@ -236,7 +283,7 @@ class _AdminMissionsScreenState extends State<AdminMissionsScreen> {
                                         children: [
                                           Text(title, style: AppText.body(size: 14, weight: FontWeight.w700)),
                                           const SizedBox(height: 4),
-                                          Text('$period • goal: $goal • reward: ${reward.toStringAsFixed(2)}', style: AppText.caption(size: 11)),
+                                          Text('$period â€¢ goal: $goal â€¢ reward: ${reward.toStringAsFixed(2)}', style: AppText.caption(size: 11)),
                                         ],
                                       ),
                                     ),
