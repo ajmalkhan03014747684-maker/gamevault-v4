@@ -3,9 +3,9 @@ import '../../theme/app_theme.dart';
 import '../../widgets/glass_card.dart';
 import '../../services/admin_service.dart';
 
-/// Admin â€” Manage Games. Real Add Game button (was missing), full
-/// create/edit form matching the games table exactly (name, emoji,
-/// currency name/icon, description, active toggle), plus delete.
+/// Admin â€” Manage Games. Create/edit form matching the games table
+/// exactly (name, emoji, currency name/icon, description, active
+/// toggle), plus delete.
 class AdminGamesScreen extends StatefulWidget {
   final VoidCallback onBack;
   const AdminGamesScreen({super.key, required this.onBack});
