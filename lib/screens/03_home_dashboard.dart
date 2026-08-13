@@ -35,16 +35,11 @@ class GameInfo {
 }
 
 /// Fallback shown only while the real list is loading, or if the
-/// games table is genuinely empty — never used as a substitute for
+/// games table is genuinely empty â€” never used as a substitute for
 /// real data once it's available.
-const kFallbackGames = [
-  GameInfo('Free Fire', 'Diamonds', Icons.local_fire_department_rounded),
-];
+const kFallbackGames = <GameInfo>[];
 
-/// Screen 3 — Home Dashboard
-/// Now pulls the real active games list, real total balance, and real
-/// ads-watched-today count from Supabase — this is what makes Admin
-/// Panel's "Manage Games" toggle actually affect what users see.
+/// Screen 3 â€” Home Dashboard
 class HomeDashboardScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final void Function(List<GameInfo> games) onSelectGameTapped;
@@ -76,6 +71,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   double _totalBalance = 0;
   int _adsToday = 0;
   int _totalAds = 0;
+  String _username = 'Player';
   bool _loading = true;
   String? _error;
 
@@ -85,39 +81,74 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     _load();
   }
 
+  /// Each data source is fetched independently so a failure in one
+  /// (e.g. ads-today) can never wipe out data that already loaded
+  /// successfully from another (e.g. games) â€” this was the actual
+  /// cause of the "Free Fire won't go away / Call of Duty won't
+  /// appear" bug: one shared try/catch was resetting the already-
+  /// fetched real games list back to a hardcoded fallback whenever
+  /// any other call in the block threw.
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+
+    final errors = <String>[];
+
+    List<GameInfo> games = _games;
     try {
       final gameRows = await GameDataService.instance.getActiveGames();
-      final games = gameRows.map((r) => GameInfo.fromRow(r)).toList();
-      final balance = await GameDataService.instance.getTotalBalance();
-      final adsToday = await GameDataService.instance.getAdsWatchedToday();
-      final totalAds = await GameDataService.instance.getTotalAdsWatched();
-
-      if (!mounted) return;
-      setState(() {
-        _games = games.isNotEmpty ? games : kFallbackGames;
-        _totalBalance = balance;
-        _adsToday = adsToday;
-        _totalAds = totalAds;
-        _loading = false;
-      });
+      games = gameRows.map((r) => GameInfo.fromRow(r)).toList();
     } on GameDataException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _games = kFallbackGames;
-        _error = e.message;
-        _loading = false;
-      });
+      errors.add(e.message);
     }
+
+    double balance = _totalBalance;
+    try {
+      balance = await GameDataService.instance.getTotalBalance();
+    } on GameDataException catch (e) {
+      errors.add(e.message);
+    }
+
+    int adsToday = _adsToday;
+    try {
+      adsToday = await GameDataService.instance.getAdsWatchedToday();
+    } on GameDataException catch (e) {
+      errors.add(e.message);
+    }
+
+    int totalAds = _totalAds;
+    try {
+      totalAds = await GameDataService.instance.getTotalAdsWatched();
+    } on GameDataException catch (e) {
+      errors.add(e.message);
+    }
+
+    String username = _username;
+    try {
+      final profile = await AuthService.instance.getProfile();
+      final fromProfile = (profile['username'] as String?)?.trim();
+      if (fromProfile != null && fromProfile.isNotEmpty) username = fromProfile;
+    } catch (_) {
+      // Keep whatever we already had (or the 'Player' default) rather
+      // than surfacing a raw exception for a non-critical greeting.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _games = games.isNotEmpty ? games : kFallbackGames;
+      _totalBalance = balance;
+      _adsToday = adsToday;
+      _totalAds = totalAds;
+      _username = username;
+      _error = errors.isNotEmpty ? 'Some data could not load. Pull to refresh.' : null;
+      _loading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final username = AuthService.instance.currentUser?.email?.split('@').first ?? 'Player';
     const dailyGoal = 60;
     final progress = (_adsToday / dailyGoal).clamp(0.0, 1.0);
     final adsLeft = (dailyGoal - _adsToday).clamp(0, dailyGoal);
@@ -135,7 +166,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.menu_rounded, color: AppColors.text),
+                        Text('Game Vault', style: AppText.heading(size: 18)),
                         const Spacer(),
                         CircleAvatar(
                           radius: 18,
@@ -147,7 +178,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Hi, $username', style: AppText.body(size: 15, weight: FontWeight.w700)),
+                              Text('Hi, $_username', style: AppText.body(size: 15, weight: FontWeight.w700)),
                             ],
                           ),
                         ),
@@ -172,15 +203,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Total Balance', style: AppText.caption()),
+                                Text('Total Ads Watched', style: AppText.caption()),
                                 const SizedBox(height: 6),
                                 Row(
                                   children: [
-                                    const Icon(Icons.diamond_rounded, color: AppColors.gold, size: 22),
-                                    const SizedBox(width: 6),
+                                    const Icon(Icons.ondemand_video_rounded, color: AppColors.gold, size: 26),
+                                    const SizedBox(width: 8),
                                     _loading
-                                        ? const SizedBox(width: 60, height: 20, child: LinearProgressIndicator())
-                                        : Text(_totalBalance.toStringAsFixed(2), style: AppText.heading(size: 26)),
+                                        ? const SizedBox(width: 60, height: 24, child: LinearProgressIndicator())
+                                        : Text('$_totalAds', style: AppText.heading(size: 32)),
                                   ],
                                 ),
                               ],
@@ -196,7 +227,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       children: [
                         Expanded(child: _StatTile(label: 'Ads Watched Today', value: '$_adsToday')),
                         const SizedBox(width: 12),
-                        Expanded(child: _StatTile(label: 'Total Ads', value: '$_totalAds')),
+                        Expanded(child: _StatTile(label: 'Total Balance', value: _totalBalance.toStringAsFixed(2))),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -240,6 +271,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20),
                         child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_games.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: Text('No active games yet.', style: AppText.caption())),
                       )
                     else
                       ..._games.take(3).map((g) => Padding(
