@@ -50,11 +50,12 @@ class MissionProgress {
   bool get isComplete => progress >= mission.goalCount;
 }
 
-/// Missions — now fully real. Admin-created missions come straight
-/// from Supabase, and progress is computed LIVE from real ad_watches
-/// / referrals counts in the relevant time window, rather than a
-/// manually-incremented local counter that's easy to forget updating
-/// from other screens.
+/// Missions â€” progress computed LIVE from real ad_watches / referrals
+/// counts in the relevant time window.
+///
+/// FIX: ad_watches' real timestamp column is `watched_at`, not
+/// `created_at`. The referrals branch already used `created_at`,
+/// which now exists after the Step 1 migration, so it's unchanged.
 class MissionsService {
   MissionsService._();
   static final MissionsService instance = MissionsService._();
@@ -111,7 +112,7 @@ class MissionsService {
               .from('ad_watches')
               .select('id')
               .eq('user_id', uid)
-              .gte('created_at', periodStart.toIso8601String());
+              .gte('watched_at', periodStart.toIso8601String());
           progress = (rows as List).length;
         }
 
@@ -134,8 +135,7 @@ class MissionsService {
   }
 
   /// Claims a completed mission's reward. Credits into the first
-  /// active game's balance — same reasoning as Daily Check-in, since
-  /// mission currency isn't tied to one specific game.
+  /// active game's balance.
   Future<double> claim(String missionId) async {
     final uid = _uid;
     if (uid == null) throw MissionsException('Not logged in.');
