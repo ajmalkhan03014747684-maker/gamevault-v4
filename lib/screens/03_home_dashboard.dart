@@ -6,19 +6,26 @@ import '../widgets/bottom_nav_bar.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
 
-/// Represents a game, either loaded live from Supabase (via fromRow)
-/// or as a temporary fallback while data is loading.
+/// Represents a game loaded live from Supabase.
+///
+/// FIX: previously had no `id` field at all â€” every screen downstream
+/// (Game Details, Ad Watch, Withdraw) was using `name` as a stand-in
+/// for the database game_id. Since that column is a uuid, every
+/// threshold/balance/withdraw lookup for that game was silently
+/// failing. `id` is now the real source of truth everywhere.
 class GameInfo {
+  final String id;
   final String name;
   final String currency;
   final IconData icon;
-  const GameInfo(this.name, this.currency, this.icon);
+  const GameInfo({required this.id, required this.name, required this.currency, required this.icon});
 
   factory GameInfo.fromRow(Map<String, dynamic> row) {
     return GameInfo(
-      (row['name'] as String?) ?? 'Unknown Game',
-      (row['currency_name'] as String?) ?? 'Currency',
-      _iconForGame((row['name'] as String?) ?? ''),
+      id: (row['id'] ?? '').toString(),
+      name: (row['name'] as String?) ?? 'Unknown Game',
+      currency: (row['currency_name'] as String?) ?? 'Currency',
+      icon: _iconForGame((row['name'] as String?) ?? ''),
     );
   }
 
@@ -34,18 +41,14 @@ class GameInfo {
   }
 }
 
-/// Fallback shown only while the real list is loading, or if the
-/// games table is genuinely empty â€” never used as a substitute for
-/// real data once it's available.
 const kFallbackGames = <GameInfo>[];
 
 /// Screen 3 â€” Home Dashboard
 class HomeDashboardScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
-  final void Function(List<GameInfo> games) onSelectGameTapped;
+  final VoidCallback onSelectGameTapped;
   final VoidCallback onNotificationsTapped;
   final VoidCallback onMiniGamesTapped;
-  final VoidCallback onDailyBonusTapped;
   final VoidCallback onMissionsTapped;
   final VoidCallback onLeaderboardTapped;
   final void Function(GameInfo game) onGameRowTapped;
@@ -56,7 +59,6 @@ class HomeDashboardScreen extends StatefulWidget {
     required this.onSelectGameTapped,
     required this.onNotificationsTapped,
     required this.onMiniGamesTapped,
-    required this.onDailyBonusTapped,
     required this.onMissionsTapped,
     required this.onLeaderboardTapped,
     required this.onGameRowTapped,
@@ -68,7 +70,6 @@ class HomeDashboardScreen extends StatefulWidget {
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   List<GameInfo> _games = [];
-  double _totalBalance = 0;
   int _adsToday = 0;
   int _totalAds = 0;
   String _username = 'Player';
@@ -82,12 +83,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   /// Each data source is fetched independently so a failure in one
-  /// (e.g. ads-today) can never wipe out data that already loaded
-  /// successfully from another (e.g. games) â€” this was the actual
-  /// cause of the "Free Fire won't go away / Call of Duty won't
-  /// appear" bug: one shared try/catch was resetting the already-
-  /// fetched real games list back to a hardcoded fallback whenever
-  /// any other call in the block threw.
+  /// can never wipe out data that already loaded successfully from
+  /// another.
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -100,13 +97,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     try {
       final gameRows = await GameDataService.instance.getActiveGames();
       games = gameRows.map((r) => GameInfo.fromRow(r)).toList();
-    } on GameDataException catch (e) {
-      errors.add(e.message);
-    }
-
-    double balance = _totalBalance;
-    try {
-      balance = await GameDataService.instance.getTotalBalance();
     } on GameDataException catch (e) {
       errors.add(e.message);
     }
@@ -131,14 +121,13 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       final fromProfile = (profile['username'] as String?)?.trim();
       if (fromProfile != null && fromProfile.isNotEmpty) username = fromProfile;
     } catch (_) {
-      // Keep whatever we already had (or the 'Player' default) rather
-      // than surfacing a raw exception for a non-critical greeting.
+      // Keep whatever we already had rather than surfacing a raw
+      // exception for a non-critical greeting.
     }
 
     if (!mounted) return;
     setState(() {
       _games = games.isNotEmpty ? games : kFallbackGames;
-      _totalBalance = balance;
       _adsToday = adsToday;
       _totalAds = totalAds;
       _username = username;
@@ -196,6 +185,37 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         child: Text(_error!, style: AppText.caption(size: 12, color: AppColors.dangerRed)),
                       ),
 
+                    // FIX: Total Balance card removed (a single sum
+                    // across different games' currencies never meant
+                    // anything real â€” see Wallet for the real
+                    // per-currency breakdown). Ads Watched Today now
+                    // takes the full-width card spot instead.
+                    GlassCard(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Ads Watched Today', style: AppText.caption()),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.play_circle_fill_rounded, color: AppColors.gold, size: 26),
+                                    const SizedBox(width: 8),
+                                    _loading
+                                        ? const SizedBox(width: 60, height: 24, child: LinearProgressIndicator())
+                                        : Text('$_adsToday', style: AppText.heading(size: 32)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
                     GlassCard(
                       child: Row(
                         children: [
@@ -221,15 +241,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-
-                    Row(
-                      children: [
-                        Expanded(child: _StatTile(label: 'Ads Watched Today', value: '$_adsToday')),
-                        const SizedBox(width: 12),
-                        Expanded(child: _StatTile(label: 'Total Balance', value: _totalBalance.toStringAsFixed(2))),
-                      ],
-                    ),
                     const SizedBox(height: 20),
 
                     Row(
@@ -248,7 +259,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _IconAction(icon: Icons.card_giftcard_rounded, label: 'Daily Bonus', onTap: widget.onDailyBonusTapped),
                         _IconAction(icon: Icons.flag_rounded, label: 'Missions', onTap: widget.onMissionsTapped),
                         _IconAction(icon: Icons.videogame_asset_rounded, label: 'Mini Games', onTap: widget.onMiniGamesTapped),
                         _IconAction(icon: Icons.leaderboard_rounded, label: 'Leaderboard', onTap: widget.onLeaderboardTapped),
@@ -261,7 +271,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       children: [
                         Text('Your Games', style: AppText.body(size: 16, weight: FontWeight.w700)),
                         GestureDetector(
-                          onTap: () => widget.onSelectGameTapped(_games),
+                          onTap: widget.onSelectGameTapped,
                           child: Text('View All', style: AppText.caption(color: AppColors.primaryPurple)),
                         ),
                       ],
@@ -316,27 +326,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             BottomNavBar(currentIndex: 0, onTap: widget.onNavTap),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StatTile extends StatelessWidget {
-  final String label;
-  final String value;
-  const _StatTile({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value, style: AppText.heading(size: 20)),
-          const SizedBox(height: 4),
-          Text(label, style: AppText.caption(size: 12)),
-        ],
       ),
     );
   }
