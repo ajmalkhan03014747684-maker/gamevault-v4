@@ -18,13 +18,11 @@ import 'screens/13_withdraw_history.dart';
 import 'screens/14_referral.dart';
 import 'screens/15_leaderboard.dart';
 import 'screens/16_notifications.dart';
-import 'screens/17_daily_checkin.dart';
 import 'screens/18_missions.dart';
 import 'screens/admin/admin_gate.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/admin_payouts_screen.dart';
 import 'screens/admin/admin_games_screen.dart';
-import 'screens/admin/admin_checkin_schedule_screen.dart';
 import 'screens/admin/admin_missions_screen.dart';
 import 'screens/admin/admin_antibot_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
@@ -58,11 +56,15 @@ class GameVaultApp extends StatelessWidget {
   }
 }
 
-/// Full 16-screen flow controller.
-/// Cooldown is now persisted via CooldownStorage (survives navigating
-/// away, backgrounding, or fully closing the app) — fixes the bug where
-/// leaving Cooldown and tapping "WATCH REWARDED AD" again skipped the
-/// wait entirely.
+/// Full screen flow controller.
+///
+/// FIX: Daily Check-in removed entirely (per product decision â€” the
+/// feature and its admin screen are gone, not just hidden).
+/// FIX: `_availableGames` cache removed â€” Select Game / Games section
+/// now fetches its own live list (see 04_select_game.dart), so there's
+/// nothing to keep in sync here anymore.
+/// FIX: every place that used to pass a game's display NAME as its
+/// database id now passes `game.id` instead.
 class RootFlow extends StatefulWidget {
   const RootFlow({super.key});
 
@@ -87,12 +89,10 @@ enum _Step {
   referral,
   leaderboard,
   notifications,
-  dailyCheckin,
   missions,
   adminDashboard,
   adminPayouts,
   adminGames,
-  adminCheckinSchedule,
   adminMissions,
   adminAntiBot,
   adminUsers,
@@ -110,8 +110,7 @@ enum _Step {
 class _RootFlowState extends State<RootFlow> {
   _Step _step = _Step.splash;
   GameInfo? _selectedGame;
-  List<GameInfo> _availableGames = [];
-  // Transient — filled in by Game Details with REAL per-game data
+  // Transient â€” filled in by Game Details with REAL per-game data
   // right before handing off to the ad flow. No fake shared counter.
   int _pendingCurrentAds = 0;
   int _pendingAdsRequired = 0;
@@ -138,9 +137,9 @@ class _RootFlowState extends State<RootFlow> {
   }
 
   /// Called when the user taps "WATCH REWARDED AD" on Game Details.
-  /// Checks the PERSISTED cooldown first — this is the actual fix.
-  /// If a cooldown is still active, route to the Cooldown screen
-  /// instead of letting them watch another ad.
+  /// Checks the PERSISTED cooldown first. If a cooldown is still
+  /// active, route to the Cooldown screen instead of letting them
+  /// watch another ad.
   Future<void> _handleWatchAdRequested(int currentAds, int adsRequired, double rewardAmount) async {
     final activeCooldown = await CooldownStorage.getCooldownEnd();
     if (activeCooldown != null) {
@@ -158,9 +157,7 @@ class _RootFlowState extends State<RootFlow> {
   }
 
   /// Where the hardware/gesture back button should send the user for
-  /// each step — mirrors each screen's own back arrow, so Android's
-  /// system back button never dumps the user out to their phone's home
-  /// screen while still inside the app flow.
+  /// each step.
   void _goBack() {
     switch (_step) {
       case _Step.selectGame:
@@ -180,7 +177,6 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.referral:
       case _Step.leaderboard:
       case _Step.notifications:
-      case _Step.dailyCheckin:
       case _Step.missions:
         setState(() => _step = _Step.home);
         break;
@@ -190,7 +186,6 @@ class _RootFlowState extends State<RootFlow> {
         break;
       case _Step.adminPayouts:
       case _Step.adminGames:
-      case _Step.adminCheckinSchedule:
       case _Step.adminMissions:
       case _Step.adminAntiBot:
       case _Step.adminUsers:
@@ -244,24 +239,19 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.home:
         return HomeDashboardScreen(
           onNavTap: _goToNavTab,
-          onSelectGameTapped: (games) => setState(() {
-            _availableGames = games;
-            _step = _Step.selectGame;
-          }),
+          onSelectGameTapped: () => setState(() => _step = _Step.selectGame),
           onGameRowTapped: (g) => setState(() {
             _selectedGame = g;
             _step = _Step.gameDetails;
           }),
           onNotificationsTapped: () => setState(() => _step = _Step.notifications),
           onMiniGamesTapped: () => setState(() => _step = _Step.miniGames),
-          onDailyBonusTapped: () => setState(() => _step = _Step.dailyCheckin),
           onMissionsTapped: () => setState(() => _step = _Step.missions),
           onLeaderboardTapped: () => setState(() => _step = _Step.leaderboard),
         );
 
       case _Step.selectGame:
         return SelectGameScreen(
-          games: _availableGames,
           activeGameName: _selectedGame?.name ?? '',
           onBack: () => setState(() => _step = _Step.home),
           onGameSelected: (g) => setState(() {
@@ -273,7 +263,6 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.gameDetails:
         return GameDetailsScreen(
           game: _selectedGame!,
-          gameId: _selectedGame!.name,
           onBack: () => setState(() => _step = _Step.selectGame),
           onWatchAd: _handleWatchAdRequested,
         );
@@ -282,7 +271,7 @@ class _RootFlowState extends State<RootFlow> {
         return AdWatchScreen(
           currentAds: _pendingCurrentAds,
           requiredAds: _pendingAdsRequired,
-          gameId: _selectedGame!.name,
+          gameId: _selectedGame!.id,
           rewardAmount: _pendingRewardAmount,
           onAdComplete: () => setState(() {
             _pendingCurrentAds += 1;
@@ -346,7 +335,10 @@ class _RootFlowState extends State<RootFlow> {
         return WalletScreen(
           onNavTap: _goToNavTab,
           onHistoryTapped: () => setState(() => _step = _Step.withdrawHistory),
-          onWithdrawTapped: () => setState(() => _step = _Step.withdraw),
+          onWithdrawTapped: (g) => setState(() {
+            _selectedGame = g;
+            _step = _Step.withdraw;
+          }),
         );
 
       case _Step.withdraw:
@@ -373,11 +365,6 @@ class _RootFlowState extends State<RootFlow> {
           onBack: () => setState(() => _step = _Step.home),
         );
 
-      case _Step.dailyCheckin:
-        return DailyCheckinScreen(
-          onBack: () => setState(() => _step = _Step.home),
-        );
-
       case _Step.missions:
         return MissionsScreen(
           onBack: () => setState(() => _step = _Step.home),
@@ -390,7 +377,6 @@ class _RootFlowState extends State<RootFlow> {
             onExit: () => setState(() => _step = _Step.profile),
             onPayoutsTapped: () => setState(() => _step = _Step.adminPayouts),
             onGamesTapped: () => setState(() => _step = _Step.adminGames),
-            onCheckinScheduleTapped: () => setState(() => _step = _Step.adminCheckinSchedule),
             onMissionsTapped: () => setState(() => _step = _Step.adminMissions),
             onAntiBotTapped: () => setState(() => _step = _Step.adminAntiBot),
             onUsersTapped: () => setState(() => _step = _Step.adminUsers),
@@ -409,11 +395,6 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.adminGames:
         return AdminGamesScreen(
-          onBack: () => setState(() => _step = _Step.adminDashboard),
-        );
-
-      case _Step.adminCheckinSchedule:
-        return AdminCheckinScheduleScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
         );
 
