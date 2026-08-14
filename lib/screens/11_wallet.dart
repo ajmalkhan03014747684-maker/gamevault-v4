@@ -4,13 +4,20 @@ import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../services/game_data_service.dart';
+import '03_home_dashboard.dart';
 
-/// Screen 11 — Wallet
-/// Pulls real balance and ad counts from Supabase via GameDataService.
+/// Screen 11 â€” Wallet
+///
+/// FIX: previously showed one "Total Balance" card summing balances
+/// across every game â€” meaningless once games have different
+/// currencies (CP for Call of Duty, Diamonds for Free Fire, etc. are
+/// not the same unit and shouldn't be added together). Now shows one
+/// card per active game with that game's own currency total, each
+/// with its own Withdraw action.
 class WalletScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final VoidCallback onHistoryTapped;
-  final VoidCallback onWithdrawTapped;
+  final void Function(GameInfo game) onWithdrawTapped;
 
   const WalletScreen({
     super.key,
@@ -24,8 +31,7 @@ class WalletScreen extends StatefulWidget {
 }
 
 class _WalletScreenState extends State<WalletScreen> {
-  bool _historyTab = true;
-  double _balance = 0.0;
+  List<Map<String, dynamic>> _balances = [];
   int _adsToday = 0;
   int _totalAds = 0;
   bool _loading = true;
@@ -43,12 +49,12 @@ class _WalletScreenState extends State<WalletScreen> {
       _error = null;
     });
     try {
-      final total = await GameDataService.instance.getTotalBalance();
+      final balances = await GameDataService.instance.getAllGameBalances();
       final adsToday = await GameDataService.instance.getAdsWatchedToday();
       final totalAds = await GameDataService.instance.getTotalAdsWatched();
       if (!mounted) return;
       setState(() {
-        _balance = total;
+        _balances = balances;
         _adsToday = adsToday;
         _totalAds = totalAds;
         _loading = false;
@@ -75,68 +81,102 @@ class _WalletScreenState extends State<WalletScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    Text('My Wallet', style: AppText.heading(size: 22)),
-                    const SizedBox(height: 18),
-                    GlassCard(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.diamond_rounded, color: AppColors.gold, size: 40),
-                          const SizedBox(height: 10),
-                          _loading
-                              ? const SizedBox(
-                                  height: 32,
-                                  child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                )
-                              : Text(_balance.toStringAsFixed(2), style: AppText.heading(size: 32)),
-                          const SizedBox(height: 4),
-                          Text('Total Balance', style: AppText.caption()),
-                        ],
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('My Wallet', style: AppText.heading(size: 22)),
+                        GestureDetector(
+                          onTap: widget.onHistoryTapped,
+                          child: Text('History', style: AppText.caption(color: AppColors.primaryPurple)),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 18),
+
                     if (_error != null) ...[
-                      const SizedBox(height: 10),
                       Text(_error!, style: AppText.caption(size: 11, color: AppColors.dangerRed)),
+                      const SizedBox(height: 10),
                     ],
-                    const SizedBox(height: 14),
-                    GradientButton(
-                      label: 'WITHDRAW',
-                      icon: Icons.arrow_downward_rounded,
-                      onPressed: widget.onWithdrawTapped,
-                    ),
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(AppRadius.button),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() => _historyTab = true);
-                                widget.onHistoryTapped();
-                              },
-                              child: _tab('History', _historyTab),
+
+                    Text('Your Currencies', style: AppText.body(size: 15, weight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+
+                    if (_loading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 30),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (_balances.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(child: Text('No active games yet.', style: AppText.caption())),
+                      )
+                    else
+                      ..._balances.map((b) {
+                        final name = (b['name'] as String?) ?? 'Game';
+                        final currency = (b['currency_name'] as String?) ?? 'Currency';
+                        final balance = (b['balance'] as num?)?.toDouble() ?? 0;
+                        final game = GameInfo(
+                          id: (b['id'] ?? '').toString(),
+                          name: name,
+                          currency: currency,
+                          icon: GameInfo.fromRow({'name': name}).icon,
+                        );
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: GlassCard(
+                            padding: const EdgeInsets.all(18),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface2,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(game.icon, color: AppColors.primaryPurple),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(name, style: AppText.body(size: 14, weight: FontWeight.w700)),
+                                          Text('Total $currency Earned', style: AppText.caption(size: 12)),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(balance.toStringAsFixed(2), style: AppText.heading(size: 20)),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: OutlinedButton(
+                                    onPressed: balance > 0 ? () => widget.onWithdrawTapped(game) : null,
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(color: AppColors.primaryPurple),
+                                      padding: const EdgeInsets.symmetric(vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
+                                    ),
+                                    child: Text('Withdraw $currency', style: AppText.body(size: 13, weight: FontWeight.w700, color: AppColors.primaryPurple)),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: () => setState(() => _historyTab = false),
-                              child: _tab('Transactions', !_historyTab),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
+                        );
+                      }),
+
+                    const SizedBox(height: 12),
                     Text('Earning Summary', style: AppText.body(size: 15, weight: FontWeight.w700)),
                     const SizedBox(height: 12),
                     _row('Ads Watched Today', '$_adsToday'),
                     _row('Total Ads Watched', '$_totalAds'),
-                    _row('Current Balance', _balance.toStringAsFixed(2)),
                   ],
                 ),
               ),
@@ -145,20 +185,6 @@ class _WalletScreenState extends State<WalletScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _tab(String label, bool active) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        color: active ? AppColors.primaryPurple : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.button - 2),
-      ),
-      alignment: Alignment.center,
-      child: Text(label,
-          style: AppText.body(size: 13, weight: FontWeight.w700, color: active ? Colors.white : AppColors.muted)),
     );
   }
 
