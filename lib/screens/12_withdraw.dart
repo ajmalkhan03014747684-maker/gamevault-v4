@@ -6,8 +6,12 @@ import '../widgets/cyber_text_field.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
-/// Screen 12 — Withdraw
-/// Fetches real balance and submits real requests via GameDataService.
+/// Screen 12 â€” Withdraw
+///
+/// FIX: was calling GameDataService with `widget.game.name` (the
+/// display name, e.g. "Call of Duty") as the game_id â€” since that
+/// column is a uuid, this silently failed every time. Now uses
+/// `widget.game.id`, the real database id.
 class WithdrawScreen extends StatefulWidget {
   final GameInfo game;
   final VoidCallback onSubmitted;
@@ -38,7 +42,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
   Future<void> _loadBalance() async {
     try {
-      final b = await GameDataService.instance.getBalance(widget.game.name);
+      final b = await GameDataService.instance.getBalance(widget.game.id);
       if (!mounted) return;
       setState(() {
         _balance = b;
@@ -66,7 +70,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
 
     try {
       await GameDataService.instance.submitWithdrawRequest(
-        gameId: widget.game.name,
+        gameId: widget.game.id,
         amount: _balance,
         gameUid: _uidController.text.trim(),
         gameUsername: _usernameController.text.trim(),
