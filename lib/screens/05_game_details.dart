@@ -8,21 +8,24 @@ import '../services/ads_service.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
-/// Screen 5 — Game Details
-/// Now loads REAL per-game progress and the REAL next ad_thresholds
-/// tier from Supabase — this is what makes Admin Panel's "Ad
-/// Thresholds" screen actually control what users see, instead of
-/// this screen showing hardcoded 60/26 regardless of admin config.
+/// Screen 5 â€” Game Details
+///
+/// FIX: previously took a separate `gameId` parameter that callers
+/// filled with the game's display NAME (e.g. "Call of Duty") instead
+/// of its real database id. Since ad_thresholds/ad_watches/balances
+/// all key on a uuid column, every lookup here was silently failing
+/// (caught as an exception, shown as "no reward tiers configured"
+/// regardless of what the admin actually set up). Now uses
+/// `widget.game.id`, the real id carried on GameInfo â€” no separate
+/// parameter needed at all.
 class GameDetailsScreen extends StatefulWidget {
   final GameInfo game;
-  final String gameId;
   final VoidCallback onBack;
   final void Function(int currentAds, int adsRequired, double rewardAmount) onWatchAd;
 
   const GameDetailsScreen({
     super.key,
     required this.game,
-    required this.gameId,
     required this.onBack,
     required this.onWatchAd,
   });
@@ -43,6 +46,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   double _rewardAmount = 0;
   bool _hasRealThreshold = false;
 
+  String get _gameId => widget.game.id;
+
   @override
   void initState() {
     super.initState();
@@ -53,8 +58,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
   Future<void> _loadProgress() async {
     setState(() => _loadingProgress = true);
     try {
-      final currentAds = await GameDataService.instance.getAdsWatchedForGame(widget.gameId);
-      final threshold = await GameDataService.instance.getNextThreshold(widget.gameId, currentAds);
+      final currentAds = await GameDataService.instance.getAdsWatchedForGame(_gameId);
+      final threshold = await GameDataService.instance.getNextThreshold(_gameId, currentAds);
 
       if (!mounted) return;
       setState(() {
@@ -64,7 +69,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           _rewardAmount = (threshold['currency_reward'] as num?)?.toDouble() ?? 0;
           _hasRealThreshold = true;
         } else {
-          // No admin-configured thresholds for this game yet — fall
+          // No admin-configured thresholds for this game yet â€” fall
           // back to a sane default rather than showing 0/0.
           _adsRequired = 60;
           _rewardAmount = 0;
@@ -140,8 +145,6 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   child: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
                 ),
                 const Spacer(),
-                const Icon(Icons.menu_rounded, color: AppColors.text),
-                const SizedBox(width: 16),
                 const Icon(Icons.notifications_none_rounded, color: AppColors.text),
               ],
             ),
@@ -235,7 +238,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                     border: Border.all(color: AppColors.secondaryOrange.withOpacity(0.4)),
                   ),
                   child: Text(
-                    'Daily ad limit reached — come back tomorrow',
+                    'Daily ad limit reached â€” come back tomorrow',
                     style: AppText.caption(size: 13, color: AppColors.secondaryOrange),
                     textAlign: TextAlign.center,
                   ),
@@ -280,7 +283,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
     List<Map<String, dynamic>> rates = [];
     String? error;
     try {
-      rates = await GameDataService.instance.getWithdrawRates(widget.gameId);
+      rates = await GameDataService.instance.getWithdrawRates(_gameId);
     } on GameDataException catch (e) {
       error = e.message;
     }
@@ -296,7 +299,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Withdraw Rates — ${widget.game.name}', style: AppText.body(size: 16, weight: FontWeight.w700)),
+            Text('Withdraw Rates â€” ${widget.game.name}', style: AppText.body(size: 16, weight: FontWeight.w700)),
             const SizedBox(height: 16),
             if (error != null)
               Text(error, style: AppText.caption(size: 12, color: AppColors.dangerRed))
@@ -310,7 +313,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
-                    'Every $ads ads → ${given.toStringAsFixed(2)} ${widget.game.currency} (target: ${target.toStringAsFixed(2)})',
+                    'Every $ads ads â†’ ${given.toStringAsFixed(2)} ${widget.game.currency} (target: ${target.toStringAsFixed(2)})',
                     style: AppText.body(size: 13),
                   ),
                 );
