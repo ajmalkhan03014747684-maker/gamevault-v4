@@ -7,7 +7,6 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback onExit;
   final VoidCallback onPayoutsTapped;
   final VoidCallback onGamesTapped;
-  final VoidCallback onCheckinScheduleTapped;
   final VoidCallback onMissionsTapped;
   final VoidCallback onAntiBotTapped;
   final VoidCallback onUsersTapped;
@@ -22,7 +21,6 @@ class AdminDashboardScreen extends StatefulWidget {
     required this.onExit,
     required this.onPayoutsTapped,
     required this.onGamesTapped,
-    required this.onCheckinScheduleTapped,
     required this.onMissionsTapped,
     required this.onAntiBotTapped,
     required this.onUsersTapped,
@@ -124,7 +122,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ),
               _AdminMenuRow(icon: Icons.sports_esports_rounded, label: 'Manage Games', onTap: widget.onGamesTapped),
               _AdminMenuRow(icon: Icons.trending_up_rounded, label: 'Ad Thresholds', onTap: widget.onThresholdsTapped),
-              _AdminMenuRow(icon: Icons.card_giftcard_rounded, label: 'Daily Check-in Schedule', onTap: widget.onCheckinScheduleTapped),
               _AdminMenuRow(icon: Icons.flag_rounded, label: 'Missions', onTap: widget.onMissionsTapped),
               _AdminMenuRow(icon: Icons.group_add_rounded, label: 'Referral Configs', onTap: widget.onReferralConfigsTapped),
               _AdminMenuRow(icon: Icons.account_balance_wallet_rounded, label: 'Withdraw Requirements', onTap: widget.onWithdrawReqTapped),
