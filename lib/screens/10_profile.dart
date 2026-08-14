@@ -6,8 +6,13 @@ import '../widgets/connection_status_dot.dart';
 import '../services/auth_service.dart';
 import '../services/game_data_service.dart';
 
-/// Screen 10 — Profile
+/// Screen 10 â€” Profile
 /// Real username, real stats, real admin role check.
+///
+/// FIX: "Total Earned" removed â€” it summed balances across every
+/// game's currency into one number, which was never meaningful once
+/// games have different currencies (see Wallet for the real
+/// per-currency breakdown).
 class ProfileScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final VoidCallback onAdminTapped;
@@ -35,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   String _username = 'Player';
   int _totalAds = 0;
-  double _totalEarned = 0;
   String _memberSince = '';
 
   @override
@@ -49,7 +53,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final role = await AuthService.instance.getCurrentUserRole();
       final profile = await AuthService.instance.getProfile();
       final totalAds = await GameDataService.instance.getTotalAdsWatched();
-      final totalEarned = await GameDataService.instance.getTotalBalance();
 
       String memberSince = '';
       final createdAtStr = AuthService.instance.currentUser?.createdAt;
@@ -66,7 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isAdmin = role == 'admin';
         _username = (profile['username'] as String?) ?? 'Player';
         _totalAds = totalAds;
-        _totalEarned = totalEarned;
         _memberSince = memberSince;
         _loading = false;
       });
@@ -115,8 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Row(
                       children: [
                         Expanded(child: _StatCol(label: 'Total Ads', value: '$_totalAds')),
-                        Expanded(child: _StatCol(label: 'Total Earned', value: '${_totalEarned.toStringAsFixed(2)} 💎')),
-                        Expanded(child: _StatCol(label: 'Member Since', value: _memberSince.isNotEmpty ? _memberSince : '—')),
+                        Expanded(child: _StatCol(label: 'Member Since', value: _memberSince.isNotEmpty ? _memberSince : 'â€”')),
                       ],
                     ),
                     const SizedBox(height: 24),
