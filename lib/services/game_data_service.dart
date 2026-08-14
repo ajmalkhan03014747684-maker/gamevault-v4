@@ -298,6 +298,10 @@ class GameDataService {
   }
 
   /// Sum of balances across all games for this user.
+  /// Kept for any screen that still wants a single aggregate number,
+  /// but the Wallet/Profile screens now show per-game currency
+  /// instead (a single sum across different in-game currencies never
+  /// meant anything real).
   Future<double> getTotalBalance() async {
     final uid = _uid;
     if (uid == null) return 0;
@@ -313,6 +317,60 @@ class GameDataService {
       return total;
     } catch (e) {
       throw GameDataException('Could not load total balance: $e');
+    }
+  }
+
+  /// One balance row per active game, each carrying that game's own
+  /// currency name/icon â€” this is what "Total Balance" gets replaced
+  /// with everywhere: a per-currency breakdown instead of one number
+  /// that mixed unrelated in-game currencies together.
+  Future<List<Map<String, dynamic>>> getAllGameBalances() async {
+    final uid = _uid;
+    try {
+      final games = await supabase.from('games').select().eq('is_active', true).order('name');
+      final result = <Map<String, dynamic>>[];
+      for (final g in (games as List)) {
+        final gameId = g['id'].toString();
+        double balance = 0;
+        if (uid != null) {
+          final row = await supabase
+              .from('user_game_balances')
+              .select('balance')
+              .eq('user_id', uid)
+              .eq('game_id', gameId)
+              .maybeSingle();
+          balance = (row?['balance'] as num?)?.toDouble() ?? 0;
+        }
+        result.add({
+          'id': gameId,
+          'name': g['name'],
+          'currency_name': g['currency_name'],
+          'currency_icon': g['currency_icon'],
+          'balance': balance,
+        });
+      }
+      return result;
+    } catch (e) {
+      throw GameDataException('Could not load wallet balances: $e');
+    }
+  }
+
+  /// True only if the admin has at least one ACTIVE referral config
+  /// with a reward greater than zero. Used to hide the Referral tab
+  /// and any referral entry points app-wide when there's genuinely
+  /// nothing to earn â€” fails closed (hides) if the check itself
+  /// errors, since showing a broken/empty referral program is worse
+  /// than not showing one.
+  Future<bool> hasActiveReferralReward() async {
+    try {
+      final rows = await supabase.from('referral_configs').select('reward_amount').eq('is_active', true);
+      for (final r in (rows as List)) {
+        final amount = (r['reward_amount'] as num?)?.toDouble() ?? 0;
+        if (amount > 0) return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 }
