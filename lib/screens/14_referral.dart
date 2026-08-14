@@ -7,7 +7,7 @@ import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../services/game_data_service.dart';
 
-/// Screen 14 — Referral
+/// Screen 14 â€” Referral
 /// Real referral code (generated once per user, stored in Supabase),
 /// real stats, and a real native share sheet.
 class ReferralScreen extends StatefulWidget {
@@ -92,7 +92,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
                                 child: _loading
                                     ? const LinearProgressIndicator()
                                     : Text(
-                                        _code.isNotEmpty ? _code : '—',
+                                        _code.isNotEmpty ? _code : 'â€”',
                                         style: AppText.heading(size: 20, color: AppColors.primaryPurple),
                                       ),
                               ),
@@ -130,18 +130,8 @@ class _ReferralScreenState extends State<ReferralScreen> {
                       children: [
                         Expanded(child: _StatCard(label: 'Total Referrals', value: '$_totalReferrals')),
                         const SizedBox(width: 12),
-                        Expanded(child: _StatCard(label: 'Total Earned', value: '${_totalEarned.toStringAsFixed(2)} 💎')),
+                        Expanded(child: _StatCard(label: 'Total Earned', value: '${_totalEarned.toStringAsFixed(2)} ðŸ’Ž')),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    GlassCard(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Commission Rate', style: AppText.body(size: 14)),
-                          Text('10% of friend earnings', style: AppText.caption(size: 12)),
-                        ],
-                      ),
                     ),
                   ],
                 ),
@@ -175,4 +165,3 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-
