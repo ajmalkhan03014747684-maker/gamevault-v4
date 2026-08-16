@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'services/cooldown_storage.dart';
 import 'services/supabase_config.dart';
+import 'services/game_data_service.dart';
 import 'screens/01_splash_screen.dart';
 import 'screens/02_login_register.dart';
 import 'screens/03_home_dashboard.dart';
@@ -116,6 +118,60 @@ class _RootFlowState extends State<RootFlow> {
   bool _pendingCycleCompleted = false;
   double _pendingEarned = 0;
 
+  // ---------------------------------------------------------------
+  // PAYOUT NOTIFICATION BANNER
+  // Polls for a new (unread) payout_approved / payout_rejected
+  // notification while the app is open, shows a banner for 10
+  // seconds, then auto-dismisses. The notification itself is NOT
+  // marked read by the banner â€” it stays in the Notifications screen
+  // permanently until the user actually opens it there.
+  // ---------------------------------------------------------------
+  Timer? _pollTimer;
+  Timer? _bannerAutoHideTimer;
+  Map<String, dynamic>? _activeBanner;
+  final Set<String> _bannerShownIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) => _pollForPayoutNotification());
+    // Also check shortly after the app opens, in case something was
+    // already waiting from before this session.
+    Future.delayed(const Duration(seconds: 3), _pollForPayoutNotification);
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _bannerAutoHideTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _pollForPayoutNotification() async {
+    if (!mounted) return;
+    // Don't poll before the user is logged in.
+    if (_step == _Step.splash || _step == _Step.login) return;
+
+    final notif = await GameDataService.instance.getLatestUnreadPayoutNotification();
+    if (!mounted || notif == null) return;
+
+    final id = notif['id']?.toString();
+    if (id == null || _bannerShownIds.contains(id)) return;
+
+    _bannerShownIds.add(id);
+    _bannerAutoHideTimer?.cancel();
+    setState(() => _activeBanner = notif);
+    _bannerAutoHideTimer = Timer(const Duration(seconds: 10), () {
+      if (!mounted) return;
+      setState(() => _activeBanner = null);
+    });
+  }
+
+  void _dismissBanner() {
+    _bannerAutoHideTimer?.cancel();
+    setState(() => _activeBanner = null);
+  }
+
   void _goToNavTab(int i) {
     switch (i) {
       case 0:
@@ -221,7 +277,60 @@ class _RootFlowState extends State<RootFlow> {
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _goBack();
       },
-      child: _buildCurrentScreen(),
+      child: Stack(
+        children: [
+          _buildCurrentScreen(),
+          if (_activeBanner != null) _buildPayoutBanner(_activeBanner!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPayoutBanner(Map<String, dynamic> notif) {
+    final isApproved = notif['type'] == 'payout_approved';
+    final title = (notif['title'] as String?) ?? (isApproved ? 'âœ… Payout Approved!' : 'âŒ Payout Update');
+    final message = (notif['message'] as String?) ?? '';
+    final color = isApproved ? AppColors.successGreen : AppColors.dangerRed;
+
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: color.withOpacity(0.5)),
+              boxShadow: [BoxShadow(color: color.withOpacity(0.25), blurRadius: 16, spreadRadius: 1)],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: AppText.body(size: 14, weight: FontWeight.w700, color: color)),
+                      const SizedBox(height: 4),
+                      Text(message, style: AppText.caption(size: 12)),
+                    ],
+                  ),
+                ),
+                GestureDetector(
+                  onTap: _dismissBanner,
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.close_rounded, size: 18, color: AppColors.muted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
