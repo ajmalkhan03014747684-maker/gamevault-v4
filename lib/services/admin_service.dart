@@ -100,11 +100,15 @@ class AdminService {
           .maybeSingle();
       final currentBalance = (balanceRow?['balance'] as num?)?.toDouble() ?? 0;
 
+      // FIX: without onConflict, Supabase checks the row's own `id`
+      // for conflicts instead of the actual unique key (user_id,
+      // game_id), so an existing balance row is never recognized and
+      // the upsert fails with a duplicate-key error.
       await supabase.from('user_game_balances').upsert({
         'user_id': userId,
         'game_id': gameId,
         'balance': currentBalance + amount,
-      });
+      }, onConflict: 'user_id,game_id');
 
       await supabase.from('payout_requests').update({
         'status': 'rejected',
