@@ -125,13 +125,18 @@ class GameDataService {
     }
   }
 
-  /// Call this when an ad finishes successfully. Logs the watch (with
-  /// an explicit watched_at timestamp) and credits the reward to the
-  /// user's balance for that game. Returns the new balance.
-  Future<double> recordAdWatchAndCredit({
-    required String gameId,
-    required double rewardAmount,
-  }) async {
+  /// Call this when an ad finishes successfully. Logs the watch,
+  /// increments the game's running ad count, and â€” matching the
+  /// reference app exactly â€” auto-credits the cycle reward the moment
+  /// total ads watched for this game hits a multiple of the admin's
+  /// configured "ads per cycle". No manual claim step: crediting is
+  /// automatic and repeats every cycle for as long as the user keeps
+  /// watching ads.
+  ///
+  /// Returns info the UI can use for a toast/message: whether this ad
+  /// completed a cycle, how much was earned, and (if not) how many
+  /// ads remain in the current cycle.
+  Future<Map<String, dynamic>> recordAdWatch({required String gameId}) async {
     final uid = _uid;
     if (uid == null) throw GameDataException('Not logged in.');
 
@@ -142,50 +147,222 @@ class GameDataService {
         'watched_at': DateTime.now().toIso8601String(),
       });
 
-      final current = await getBalance(gameId);
-      final newBalance = current + rewardAmount;
+      final balRow = await supabase
+          .from('user_game_balances')
+          .select('balance, total_ads_watched')
+          .eq('user_id', uid)
+          .eq('game_id', gameId)
+          .maybeSingle();
 
+      final currentAds = (balRow?['total_ads_watched'] as num?)?.toInt() ?? 0;
+      final currentBalance = (balRow?['balance'] as num?)?.toDouble() ?? 0;
+      final newAds = currentAds + 1;
+
+      final config = await getCycleConfig(gameId);
+      double newBalance = currentBalance;
+      double earned = 0;
+      bool cycleCompleted = false;
+      int adsLeftInCycle = 0;
+
+      if (config != null) {
+        final adsPerCycle = (config['ads_required'] as num?)?.toInt() ?? 0;
+        final currencyPerCycle = (config['currency_given'] as num?)?.toDouble() ?? 0;
+        if (adsPerCycle > 0) {
+          if (newAds % adsPerCycle == 0) {
+            earned = currencyPerCycle;
+            newBalance += earned;
+            cycleCompleted = true;
+          } else {
+            adsLeftInCycle = adsPerCycle - (newAds % adsPerCycle);
+          }
+        }
+      }
+
+      // FIX: onConflict required â€” see submitCycleWithdraw for why.
       await supabase.from('user_game_balances').upsert({
         'user_id': uid,
         'game_id': gameId,
         'balance': newBalance,
-      });
+        'total_ads_watched': newAds,
+      }, onConflict: 'user_id,game_id');
 
-      return newBalance;
+      return {
+        'cycle_completed': cycleCompleted,
+        'earned': earned,
+        'ads_left_in_cycle': adsLeftInCycle,
+        'new_ads': newAds,
+        'new_balance': newBalance,
+      };
     } catch (e) {
-      throw GameDataException('Could not save ad watch / credit reward: $e');
+      throw GameDataException('Could not save ad watch: $e');
     }
   }
 
-  /// Submits a withdrawal request for admin review.
-  Future<void> submitWithdrawRequest({
+  /// The active withdraw-rate / cycle config for a game â€” one row in
+  /// withdraw_requirements doubles as BOTH the withdraw rate AND the
+  /// ad-watch cycle config (ads_required = ads per cycle,
+  /// currency_given = currency per cycle, target_currency = the cap
+  /// shown on the auto-calculated schedule).
+  Future<Map<String, dynamic>?> getCycleConfig(String gameId) async {
+    try {
+      final rows = await supabase
+          .from('withdraw_requirements')
+          .select()
+          .eq('game_id', gameId)
+          .eq('is_active', true)
+          .order('ads_required', ascending: true)
+          .limit(1);
+      final list = rows as List;
+      return list.isNotEmpty ? Map<String, dynamic>.from(list.first as Map) : null;
+    } catch (e) {
+      throw GameDataException('Could not load withdraw rate: $e');
+    }
+  }
+
+  /// Generates the full cumulative milestone schedule from a cycle
+  /// config: cycle 1 = adsPerCycle ads / currencyPerCycle currency,
+  /// cycle 2 = 2Ã—/2Ã—, and so on â€” capped at `target` on the final row.
+  List<Map<String, num>> calcSchedule(int adsPerCycle, double currencyPerCycle, double target) {
+    final rows = <Map<String, num>>[];
+    if (adsPerCycle <= 0 || currencyPerCycle <= 0 || target <= 0) return rows;
+    int totalAds = 0;
+    double totalCurrency = 0;
+    while (totalCurrency < target) {
+      totalAds += adsPerCycle;
+      totalCurrency += currencyPerCycle;
+      if (totalCurrency > target) totalCurrency = target;
+      rows.add({'ads': totalAds, 'currency': totalCurrency});
+      if (totalCurrency >= target) break;
+    }
+    return rows;
+  }
+
+  /// Everything the Withdraw Rates / Payout screen needs in one call:
+  /// current balance & ad count, the config, the full schedule, and
+  /// which milestone the user is currently eligible to withdraw up to.
+  Future<Map<String, dynamic>> getWithdrawEligibility(String gameId) async {
+    final uid = _uid;
+    try {
+      final config = await getCycleConfig(gameId);
+
+      double balance = 0;
+      int totalAdsWatched = 0;
+      if (uid != null) {
+        final row = await supabase
+            .from('user_game_balances')
+            .select('balance, total_ads_watched')
+            .eq('user_id', uid)
+            .eq('game_id', gameId)
+            .maybeSingle();
+        balance = (row?['balance'] as num?)?.toDouble() ?? 0;
+        totalAdsWatched = (row?['total_ads_watched'] as num?)?.toInt() ?? 0;
+      }
+
+      if (config == null) {
+        return {
+          'has_config': false,
+          'balance': balance,
+          'total_ads_watched': totalAdsWatched,
+          'schedule': <Map<String, num>>[],
+        };
+      }
+
+      final adsPerCycle = (config['ads_required'] as num?)?.toInt() ?? 0;
+      final currencyPerCycle = (config['currency_given'] as num?)?.toDouble() ?? 0;
+      final target = (config['target_currency'] as num?)?.toDouble() ?? 0;
+      final schedule = calcSchedule(adsPerCycle, currencyPerCycle, target);
+
+      final completed = schedule.where((s) => totalAdsWatched >= s['ads']!).toList();
+      final nextRow = schedule.firstWhere(
+        (s) => totalAdsWatched < s['ads']!,
+        orElse: () => <String, num>{},
+      );
+
+      final cyclePos = adsPerCycle > 0 ? totalAdsWatched % adsPerCycle : 0;
+      final adsLeftInCycle = adsPerCycle > 0 ? adsPerCycle - cyclePos : 0;
+
+      return {
+        'has_config': true,
+        'ads_per_cycle': adsPerCycle,
+        'currency_per_cycle': currencyPerCycle,
+        'target_currency': target,
+        'balance': balance,
+        'total_ads_watched': totalAdsWatched,
+        'cycle_pos': cyclePos,
+        'ads_left_in_cycle': adsLeftInCycle,
+        'schedule': schedule,
+        'cycles_done': completed.length,
+        'total_cycles': schedule.length,
+        'next_row': nextRow,
+        // Eligibility to WITHDRAW is just "do you have any balance" â€”
+        // ad-watch progress (the schedule above) is a separate,
+        // purely informational lifetime tracker. It used to gate
+        // withdrawals too, back when a withdrawal reset the whole
+        // cycle; now that withdrawals only deduct what's withdrawn,
+        // there's no reason to tie the two together.
+        'eligible': balance > 0,
+      };
+    } catch (e) {
+      throw GameDataException('Could not load withdraw eligibility: $e');
+    }
+  }
+
+  /// Submits a real-world payout request for PART or ALL of the
+  /// user's balance:
+  /// - balance is reduced by exactly the withdrawn amount (a partial
+  ///   withdrawal keeps the remainder)
+  /// - the ad-watch cycle ALWAYS resets to zero on any withdrawal,
+  ///   regardless of the amount â€” so the user starts back at cycle #1
+  ///   and has to watch ads again to earn more, even if they only
+  ///   withdrew part of their balance.
+  Future<void> submitCycleWithdraw({
     required String gameId,
     required double amount,
     required String gameUid,
     required String gameUsername,
+    String? note,
   }) async {
     final uid = _uid;
     if (uid == null) throw GameDataException('Not logged in.');
-    try {
-      final currentBalance = await getBalance(gameId);
-      if (currentBalance < amount) {
-        throw GameDataException('Insufficient balance for this withdrawal.');
-      }
+    if (amount <= 0) throw GameDataException('Enter a valid amount.');
+    if (gameUsername.trim().isEmpty) throw GameDataException('Enter your in-game username.');
+    if (gameUid.trim().isEmpty) throw GameDataException('Enter your in-game UID.');
 
-      await supabase.from('user_game_balances').upsert({
-        'user_id': uid,
-        'game_id': gameId,
-        'balance': currentBalance - amount,
-      });
+    try {
+      final eligibility = await getWithdrawEligibility(gameId);
+      final balance = eligibility['balance'] as double;
+      if (amount > balance) throw GameDataException('Insufficient balance.');
+
+      String cycleInfo = '';
+      if (eligibility['has_config'] == true) {
+        final cyclesDone = eligibility['cycles_done'] as int;
+        final totalCycles = eligibility['total_cycles'] as int;
+        final totalAds = eligibility['total_ads_watched'] as int;
+        cycleInfo = 'Cycles: $cyclesDone/$totalCycles | Ads: $totalAds';
+      }
 
       await supabase.from('payout_requests').insert({
         'user_id': uid,
         'game_id': gameId,
         'amount': amount,
-        'game_uid': gameUid,
-        'game_username': gameUsername,
+        'game_username': gameUsername.trim(),
+        'game_uid': gameUid.trim(),
+        'note': [if (note != null && note.trim().isNotEmpty) note.trim(), cycleInfo]
+            .where((s) => s.isNotEmpty)
+            .join(' | '),
         'status': 'pending',
       });
+
+      // Balance: only the withdrawn amount is deducted (partial
+      // withdrawals keep the rest). Ad cycle: always resets to 0, so
+      // the next reward requires watching ads again from cycle #1 â€”
+      // this happens on every withdrawal, not just full ones.
+      await supabase.from('user_game_balances').upsert({
+        'user_id': uid,
+        'game_id': gameId,
+        'balance': balance - amount,
+        'total_ads_watched': 0,
+      }, onConflict: 'user_id,game_id');
     } on GameDataException {
       rethrow;
     } catch (e) {
@@ -374,3 +551,4 @@ class GameDataService {
     }
   }
 }
+      
