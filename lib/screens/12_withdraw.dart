@@ -6,13 +6,13 @@ import '../widgets/cyber_text_field.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
-/// Screen 12 — Withdraw (reached from Wallet)
+/// Screen 12 â€” Withdraw (reached from Wallet)
 ///
 /// FIX: previously let the user withdraw any amount up to their raw
 /// balance with no cycle awareness, and used the wrong id-vs-name key.
 /// Now uses the exact same eligibility system as Game Details'
-/// "Request Payout" — same locked message if no cycle is complete
-/// yet, same suggested/max amount, same full cycle reset on submit —
+/// "Request Payout" â€” same locked message if no cycle is complete
+/// yet, same suggested/max amount, same full cycle reset on submit â€”
 /// so Wallet and Game Details behave identically, matching the
 /// reference app where both entry points share one flow.
 class WithdrawScreen extends StatefulWidget {
@@ -160,7 +160,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
               )
             else ...[
               Text(
-                'Balance: ${balance.toStringAsFixed(2)} ${widget.game.currency} · Ads: $totalAds',
+                'Balance: ${balance.toStringAsFixed(2)} ${widget.game.currency} Â· Ads: $totalAds',
                 style: AppText.body(size: 14, weight: FontWeight.w600),
               ),
               const SizedBox(height: 14),
@@ -174,7 +174,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Withdrawal requested! Your cycle has restarted from #1 — watch ads again to earn more.',
+                    'Withdrawal requested! Your cycle has restarted from #1 â€” watch ads again to earn more.',
                     style: AppText.body(size: 13, color: AppColors.successGreen),
                   ),
                 ),
@@ -190,8 +190,8 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                   ),
                   child: Text(
                     hasConfig
-                        ? '🔒 Watch ${adsPerCycle - totalAds} more ads to complete your first cycle and become eligible to withdraw.'
-                        : '🔒 No withdraw rate configured for this game yet.',
+                        ? 'ðŸ”’ Watch ${adsPerCycle - totalAds} more ads to complete your first cycle and become eligible to withdraw.'
+                        : 'ðŸ”’ No withdraw rate configured for this game yet.',
                     style: AppText.body(size: 13, color: AppColors.dangerRed),
                   ),
                 ),
@@ -204,7 +204,7 @@ class _WithdrawScreenState extends State<WithdrawScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Eligible to withdraw · Completed $cyclesDone of $totalCycles cycles',
+                    'Eligible to withdraw Â· Completed $cyclesDone of $totalCycles cycles',
                     style: AppText.caption(size: 12, color: AppColors.successGreen),
                   ),
                 ),
