@@ -655,7 +655,7 @@ class _PayoutSheetState extends State<_PayoutSheet> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Available to withdraw: ${maxEligible.toStringAsFixed(2)} ${widget.game.currency}'
+                  'Available to withdraw: ${balance.toStringAsFixed(2)} ${widget.game.currency}'
                   '${totalCycles > 0 ? ' Â· Lifetime cycles: $cyclesDone/$totalCycles' : ''}',
                   style: AppText.caption(size: 12, color: AppColors.successGreen),
                 ),
