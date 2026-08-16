@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 
-/// Screen 7 — Reward Success
+/// Screen 7 â€” Reward Success
 ///
 /// FIX: now shows the real amount credited (if this ad completed a
 /// cycle) instead of an always-generic "+1 Progress" message.
