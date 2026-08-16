@@ -26,7 +26,6 @@ import 'screens/admin/admin_games_screen.dart';
 import 'screens/admin/admin_missions_screen.dart';
 import 'screens/admin/admin_antibot_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
-import 'screens/admin/admin_thresholds_screen.dart';
 import 'screens/admin/admin_referral_configs_screen.dart';
 import 'screens/admin/admin_withdraw_req_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
@@ -98,7 +97,6 @@ enum _Step {
   adminUsers,
   adminSettings,
   adminDangerZone,
-  adminThresholds,
   adminReferralConfigs,
   adminWithdrawReq,
   editProfile,
@@ -115,6 +113,8 @@ class _RootFlowState extends State<RootFlow> {
   int _pendingCurrentAds = 0;
   int _pendingAdsRequired = 0;
   double _pendingRewardAmount = 0;
+  bool _pendingCycleCompleted = false;
+  double _pendingEarned = 0;
 
   void _goToNavTab(int i) {
     switch (i) {
@@ -191,7 +191,6 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.adminUsers:
       case _Step.adminSettings:
       case _Step.adminDangerZone:
-      case _Step.adminThresholds:
       case _Step.adminReferralConfigs:
       case _Step.adminWithdrawReq:
         setState(() => _step = _Step.adminDashboard);
@@ -273,8 +272,10 @@ class _RootFlowState extends State<RootFlow> {
           requiredAds: _pendingAdsRequired,
           gameId: _selectedGame!.id,
           rewardAmount: _pendingRewardAmount,
-          onAdComplete: () => setState(() {
+          onAdComplete: (cycleCompleted, earned) => setState(() {
             _pendingCurrentAds += 1;
+            _pendingCycleCompleted = cycleCompleted;
+            _pendingEarned = earned;
             _step = _Step.reward;
           }),
           onAdFailed: () => setState(() => _step = _Step.gameDetails),
@@ -284,6 +285,9 @@ class _RootFlowState extends State<RootFlow> {
         return RewardSuccessScreen(
           newAds: _pendingCurrentAds,
           requiredAds: _pendingAdsRequired,
+          cycleCompleted: _pendingCycleCompleted,
+          earned: _pendingEarned,
+          currency: _selectedGame?.currency ?? '',
           onContinue: () async {
             final end = DateTime.now().add(const Duration(minutes: 1, seconds: 15));
             await CooldownStorage.setCooldownEnd(end);
@@ -382,7 +386,6 @@ class _RootFlowState extends State<RootFlow> {
             onUsersTapped: () => setState(() => _step = _Step.adminUsers),
             onSettingsTapped: () => setState(() => _step = _Step.adminSettings),
             onDangerZoneTapped: () => setState(() => _step = _Step.adminDangerZone),
-            onThresholdsTapped: () => setState(() => _step = _Step.adminThresholds),
             onReferralConfigsTapped: () => setState(() => _step = _Step.adminReferralConfigs),
             onWithdrawReqTapped: () => setState(() => _step = _Step.adminWithdrawReq),
           ),
@@ -420,11 +423,6 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.adminDangerZone:
         return AdminDangerZoneScreen(
-          onBack: () => setState(() => _step = _Step.adminDashboard),
-        );
-
-      case _Step.adminThresholds:
-        return AdminThresholdsScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
         );
 
