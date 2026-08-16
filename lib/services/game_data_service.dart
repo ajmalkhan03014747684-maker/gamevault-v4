@@ -377,7 +377,7 @@ class GameDataService {
     try {
       final rows = await supabase
           .from('payout_requests')
-          .select()
+          .select('*, game:game_id(name,currency_name,emoji)')
           .eq('user_id', uid)
           .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(rows as List);
@@ -423,6 +423,58 @@ class GameDataService {
       return List<Map<String, dynamic>>.from(rows as List);
     } catch (e) {
       throw GameDataException('Could not load notifications: $e');
+    }
+  }
+
+  /// Marks every unread notification as read â€” call this once the
+  /// user has actually opened the Notifications screen.
+  Future<void> markAllNotificationsRead() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await supabase.from('notifications').update({'is_read': true}).eq('user_id', uid).eq('is_read', false);
+    } catch (_) {
+      // Non-critical â€” the list will just show them as unread a bit
+      // longer if this fails.
+    }
+  }
+
+  /// How many notifications are currently unread â€” drives the bell
+  /// badge on Home.
+  Future<int> getUnreadNotificationCount() async {
+    final uid = _uid;
+    if (uid == null) return 0;
+    try {
+      final rows = await supabase.from('notifications').select('id').eq('user_id', uid).eq('is_read', false);
+      return (rows as List).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// The most recent unread payout notification (approved/rejected) â€”
+  /// used to trigger the auto-dismissing popup banner. Does NOT mark
+  /// it read; it stays unread (and in the bell) until the user opens
+  /// Notifications, matching how a normal notification inbox works.
+  Future<Map<String, dynamic>?> getLatestUnreadPayoutNotification() async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final rows = await supabase
+          .from('notifications')
+          .select()
+          .eq('user_id', uid)
+          .eq('is_read', false)
+          .order('created_at', ascending: false)
+          .limit(20);
+      final list = List<Map<String, dynamic>>.from(rows as List);
+      for (final row in list) {
+        final type = row['type'] as String?;
+        if (type == 'payout_approved' || type == 'payout_rejected') return row;
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
   }
 
