@@ -3,9 +3,9 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../services/game_data_service.dart';
 
-/// Screen 16 — Notifications
+/// Screen 16 â€” Notifications
 /// Real notifications from Supabase. "VIEW ALL" scrolls to the bottom
-/// of the (already-complete) list — since this screen already shows
+/// of the (already-complete) list â€” since this screen already shows
 /// everything, "view all" becomes a real, meaningful action rather
 /// than a dead button: it confirms there's nothing more to load.
 class NotificationsScreen extends StatefulWidget {
@@ -40,6 +40,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _notifications = data;
         _loading = false;
       });
+      // Now that the user has actually opened this screen, mark
+      // everything read â€” matches how a normal notification inbox
+      // behaves (the banner popup never marks things read on its own).
+      await GameDataService.instance.markAllNotificationsRead();
     } on GameDataException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -51,6 +55,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   IconData _iconFor(String type) {
     switch (type) {
+      case 'payout_approved':
+        return Icons.check_circle_rounded;
+      case 'payout_rejected':
+        return Icons.cancel_rounded;
       case 'approval':
         return Icons.star_rounded;
       case 'bonus':
@@ -64,6 +72,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Color _colorFor(String type) {
     switch (type) {
+      case 'payout_approved':
+        return AppColors.successGreen;
+      case 'payout_rejected':
+        return AppColors.dangerRed;
       case 'approval':
         return AppColors.gold;
       case 'bonus':
@@ -123,6 +135,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               final title = (n['title'] as String?) ?? '';
                               final message = (n['message'] as String?) ?? '';
                               final createdAt = (n['created_at'] as String?) ?? '';
+                              final isRead = (n['is_read'] as bool?) ?? true;
 
                               return GlassCard(
                                 child: Row(
@@ -142,17 +155,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(title, style: AppText.body(size: 14, weight: FontWeight.w700)),
+                                          Row(
+                                            children: [
+                                              Expanded(child: Text(title, style: AppText.body(size: 14, weight: FontWeight.w700))),
+                                              if (!isRead)
+                                                Container(
+                                                  margin: const EdgeInsets.only(left: 6),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primaryPurple,
+                                                    borderRadius: BorderRadius.circular(AppRadius.chip),
+                                                  ),
+                                                  child: const Text('NEW', style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w700)),
+                                                ),
+                                            ],
+                                          ),
                                           if (message.isNotEmpty) ...[
                                             const SizedBox(height: 3),
                                             Text(message, style: AppText.caption(size: 12)),
                                           ],
+                                          if (createdAt.length >= 10) ...[
+                                            const SizedBox(height: 4),
+                                            Text(createdAt.substring(0, 10), style: AppText.caption(size: 10)),
+                                          ],
                                         ],
                                       ),
-                                    ),
-                                    Text(
-                                      createdAt.length > 10 ? createdAt.substring(0, 10) : createdAt,
-                                      style: AppText.caption(size: 11),
                                     ),
                                   ],
                                 ),
