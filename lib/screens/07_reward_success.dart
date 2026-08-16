@@ -4,9 +4,15 @@ import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 
 /// Screen 7 — Reward Success
+///
+/// FIX: now shows the real amount credited (if this ad completed a
+/// cycle) instead of an always-generic "+1 Progress" message.
 class RewardSuccessScreen extends StatefulWidget {
   final int newAds;
   final int requiredAds;
+  final bool cycleCompleted;
+  final double earned;
+  final String currency;
   final VoidCallback onContinue;
 
   const RewardSuccessScreen({
@@ -14,6 +20,9 @@ class RewardSuccessScreen extends StatefulWidget {
     required this.newAds,
     required this.requiredAds,
     required this.onContinue,
+    this.cycleCompleted = false,
+    this.earned = 0,
+    this.currency = '',
   });
 
   @override
@@ -63,10 +72,14 @@ class _RewardSuccessScreenState extends State<RewardSuccessScreen>
                 ),
               ),
               const SizedBox(height: 28),
-              Text('Reward Received!', style: AppText.heading(size: 24)),
+              Text(widget.cycleCompleted ? 'Cycle Complete!' : 'Reward Received!', style: AppText.heading(size: 24)),
               const SizedBox(height: 6),
-              Text('+1 Progress',
-                  style: AppText.body(size: 16, weight: FontWeight.w700, color: AppColors.successGreen)),
+              Text(
+                widget.cycleCompleted
+                    ? '+${widget.earned.toStringAsFixed(2)} ${widget.currency}'
+                    : '+1 Progress',
+                style: AppText.body(size: 16, weight: FontWeight.w700, color: AppColors.successGreen),
+              ),
               const Spacer(flex: 2),
               GlassCard(
                 child: Row(
