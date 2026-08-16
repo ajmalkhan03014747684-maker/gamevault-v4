@@ -4,15 +4,18 @@ import '../services/ads_service.dart';
 import '../services/game_data_service.dart';
 
 /// Screen 6 — Ad Watch Screen
-/// Calls AdsService.showRewardedAd() and, on real completion, records
-/// the watch AND credits the reward via GameDataService — this is what
-/// makes the reward loop real instead of just visual.
+///
+/// FIX: now calls recordAdWatch, which auto-credits the cycle reward
+/// the moment this ad completes a full cycle (matching the reference
+/// app) — no separate manual claim step. The result tells us whether
+/// this ad completed a cycle so the reward screen can show the real
+/// amount earned instead of a generic "+1 progress".
 class AdWatchScreen extends StatefulWidget {
   final int currentAds;
   final int requiredAds;
   final String gameId;
   final double rewardAmount;
-  final VoidCallback onAdComplete;
+  final void Function(bool cycleCompleted, double earned) onAdComplete;
   final VoidCallback onAdFailed;
 
   const AdWatchScreen({
@@ -54,15 +57,14 @@ class _AdWatchScreenState extends State<AdWatchScreen>
     }
 
     try {
-      await GameDataService.instance.recordAdWatchAndCredit(
-        gameId: widget.gameId,
-        rewardAmount: widget.rewardAmount,
-      );
+      final info = await GameDataService.instance.recordAdWatch(gameId: widget.gameId);
       if (!mounted) return;
-      widget.onAdComplete();
+      final cycleCompleted = info['cycle_completed'] == true;
+      final earned = (info['earned'] as num?)?.toDouble() ?? 0;
+      widget.onAdComplete(cycleCompleted, earned);
     } on GameDataException catch (e) {
       if (!mounted) return;
-      // Ad played, but crediting failed (e.g. RLS/schema issue) — show
+      // Ad played, but logging failed (e.g. RLS/schema issue) — show
       // the real error instead of silently pretending it worked.
       setState(() => _errorMessage = e.message);
     }
