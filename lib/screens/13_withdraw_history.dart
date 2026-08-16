@@ -3,7 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../services/game_data_service.dart';
 
-/// Screen 13 — Withdraw History
+/// Screen 13 â€” Withdraw History
 /// Real requests via GameDataService instead of hardcoded examples.
 class WithdrawHistoryScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -121,31 +121,61 @@ class _WithdrawHistoryScreenState extends State<WithdrawHistoryScreen> {
                               final e = filtered[i];
                               final amount = (e['amount'] as num?)?.toDouble() ?? 0.0;
                               final status = (e['status'] as String?) ?? 'pending';
-                              final uid = (e['game_uid'] as String?) ?? '—';
+                              final uid = (e['game_uid'] as String?) ?? 'â€”';
                               final date = (e['created_at'] as String?)?.split('T').first ?? '';
+                              final gameName = (e['game']?['name'] as String?) ?? '';
+                              final currency = (e['game']?['currency_name'] as String?) ?? '';
+                              final rejectionReason = (e['rejection_reason'] as String?) ?? '';
 
                               return GlassCard(
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.diamond_rounded, color: AppColors.gold, size: 22),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(amount.toStringAsFixed(2), style: AppText.body(size: 14, weight: FontWeight.w700)),
-                                          Text('UID: $uid', style: AppText.caption(size: 12)),
-                                        ],
-                                      ),
-                                    ),
-                                    Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                    Row(
                                       children: [
-                                        _StatusBadge(status: status),
-                                        const SizedBox(height: 4),
-                                        Text(date, style: AppText.caption(size: 11)),
+                                        const Icon(Icons.diamond_rounded, color: AppColors.gold, size: 22),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('${amount.toStringAsFixed(2)} $currency', style: AppText.body(size: 14, weight: FontWeight.w700)),
+                                              if (gameName.isNotEmpty)
+                                                Text(gameName, style: AppText.caption(size: 12)),
+                                              Text('UID: $uid', style: AppText.caption(size: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            _StatusBadge(status: status),
+                                            const SizedBox(height: 4),
+                                            Text(date, style: AppText.caption(size: 11)),
+                                          ],
+                                        ),
                                       ],
                                     ),
+                                    if (status.toLowerCase() == 'approved') ...[
+                                      const SizedBox(height: 8),
+                                      Text('You will receive within 12 hours', style: AppText.caption(size: 11, color: AppColors.successGreen)),
+                                    ],
+                                    if (status.toLowerCase() == 'rejected' && rejectionReason.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.dangerRed.withOpacity(0.08),
+                                          border: Border.all(color: AppColors.dangerRed.withOpacity(0.25)),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          'ðŸ“ Reason: $rejectionReason',
+                                          style: AppText.caption(size: 12, color: AppColors.dangerRed),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               );
