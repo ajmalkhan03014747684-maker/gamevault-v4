@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/glowing_progress_bar.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
@@ -138,10 +137,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const dailyGoal = 60;
-    final progress = (_adsToday / dailyGoal).clamp(0.0, 1.0);
-    final adsLeft = (dailyGoal - _adsToday).clamp(0, dailyGoal);
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -241,19 +236,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("Today's Progress", style: AppText.body(size: 14, weight: FontWeight.w600)),
-                        Text('$_adsToday/$dailyGoal Ads', style: AppText.caption(color: AppColors.text)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    GlowingProgressBar(value: progress),
-                    const SizedBox(height: 6),
-                    Text('$adsLeft Ads more to next reward', style: AppText.caption(size: 12)),
                     const SizedBox(height: 24),
 
                     Row(
