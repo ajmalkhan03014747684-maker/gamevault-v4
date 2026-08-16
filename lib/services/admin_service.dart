@@ -57,30 +57,101 @@ class AdminService {
   // ---------------------------------------------------------------
   // PAYOUT REQUESTS
   // ---------------------------------------------------------------
-  Future<List<Map<String, dynamic>>> getPendingPayouts() async {
+
+  /// All payout requests (any status), newest first, with the user's
+  /// username and the game's name/currency embedded â€” needed to show
+  /// a readable admin list and to compose notification messages.
+  Future<List<Map<String, dynamic>>> getAllPayouts() async {
     try {
-      final rows = await supabase.from('payout_requests').select().eq('status', 'pending').order('created_at', ascending: true);
+      final rows = await supabase
+          .from('payout_requests')
+          .select('*, user:user_id(username,email), game:game_id(name,currency_name,emoji)')
+          .order('created_at', ascending: false);
       return List<Map<String, dynamic>>.from(rows as List);
     } catch (e) {
       throw AdminException('Could not load payout requests: $e');
     }
   }
 
+  /// Kept for any screen that only wants pending ones.
+  Future<List<Map<String, dynamic>>> getPendingPayouts() async {
+    try {
+      final rows = await supabase
+          .from('payout_requests')
+          .select('*, user:user_id(username,email), game:game_id(name,currency_name,emoji)')
+          .eq('status', 'pending')
+          .order('created_at', ascending: true);
+      return List<Map<String, dynamic>>.from(rows as List);
+    } catch (e) {
+      throw AdminException('Could not load payout requests: $e');
+    }
+  }
+
+  /// Approves a payout AND sends the user a permanent notification.
+  /// Balance was already deducted when the user submitted the
+  /// withdrawal request (see GameDataService.submitCycleWithdraw), so
+  /// nothing further needs deducting here â€” only the status change and
+  /// the notification.
   Future<void> approvePayout(String requestId) async {
     try {
-      await supabase.from('payout_requests').update({'status': 'approved'}).eq('id', requestId);
+      final request = await supabase
+          .from('payout_requests')
+          .select('*, user:user_id(username,email), game:game_id(name,currency_name)')
+          .eq('id', requestId)
+          .single();
+
+      if (request['status'] != 'pending') {
+        throw AdminException('This request was already processed.');
+      }
+
+      await supabase.from('payout_requests').update({
+        'status': 'approved',
+        'approved_at': DateTime.now().toIso8601String(),
+      }).eq('id', requestId);
+
+      final username = (request['user']?['username'] as String?) ??
+          (request['user']?['email'] as String?) ??
+          'User';
+      final gameName = (request['game']?['name'] as String?) ?? 'the game';
+      final currency = (request['game']?['currency_name'] as String?) ?? '';
+      final amount = (request['amount'] as num?)?.toStringAsFixed(2) ?? '0';
+      final gameUsername = (request['game_username'] as String?) ?? '';
+      final gameUid = (request['game_uid'] as String?) ?? 'N/A';
+
+      final message =
+          'Dear $username, your withdrawal request of $amount $currency for $gameName '
+          '(Username: $gameUsername, UID: $gameUid) has been approved. '
+          'You will receive your $currency within 12 hours. Thank you!';
+
+      try {
+        await supabase.from('notifications').insert({
+          'user_id': request['user_id'],
+          'type': 'payout_approved',
+          'title': 'âœ… Payout Approved!',
+          'message': message,
+          'payout_id': requestId,
+          'is_read': false,
+        });
+      } catch (_) {
+        // Approval already succeeded â€” don't fail the whole action
+        // just because the notification insert had a problem.
+      }
+    } on AdminException {
+      rethrow;
     } catch (e) {
       throw AdminException('Could not approve request: $e');
     }
   }
 
-  /// Rejects a payout request AND refunds the balance that was
-  /// deducted when the user submitted it.
+  /// Rejects a payout request, REFUNDS the balance that was deducted
+  /// when the user submitted it (their ad-cycle progress stays reset
+  /// though â€” only the currency comes back), and sends a permanent
+  /// notification that includes the reason.
   Future<void> rejectPayout(String requestId, String reason) async {
     try {
       final request = await supabase
           .from('payout_requests')
-          .select('user_id, game_id, amount, status')
+          .select('*, user:user_id(username,email), game:game_id(name,currency_name)')
           .eq('id', requestId)
           .single();
 
@@ -114,6 +185,35 @@ class AdminService {
         'status': 'rejected',
         'rejection_reason': reason,
       }).eq('id', requestId);
+
+      final username = (request['user']?['username'] as String?) ??
+          (request['user']?['email'] as String?) ??
+          'User';
+      final gameName = (request['game']?['name'] as String?) ?? 'the game';
+      final currency = (request['game']?['currency_name'] as String?) ?? '';
+      final amountStr = amount.toStringAsFixed(2);
+      final reasonText = reason.trim().isNotEmpty ? reason.trim() : 'No reason was provided.';
+
+      final message =
+          'Dear $username, your withdrawal request of $amountStr $currency for $gameName '
+          'has been rejected. Reason: $reasonText. Your $amountStr $currency has been '
+          'refunded to your balance.';
+
+      try {
+        await supabase.from('notifications').insert({
+          'user_id': userId,
+          'type': 'payout_rejected',
+          'title': 'âŒ Payout Rejected',
+          'message': message,
+          'payout_id': requestId,
+          'is_read': false,
+        });
+      } catch (_) {
+        // Rejection + refund already succeeded â€” don't fail the whole
+        // action just because the notification insert had a problem.
+      }
+    } on AdminException {
+      rethrow;
     } catch (e) {
       throw AdminException('Could not reject request: $e');
     }
