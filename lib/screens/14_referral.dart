@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../services/game_data_service.dart';
@@ -64,7 +65,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
         child: Column(
           children: [
             Expanded(
-              child: RefreshIndicator(
+              child: AppRefreshIndicator(
                 onRefresh: _load,
                 child: ListView(
                   padding: const EdgeInsets.all(20),
