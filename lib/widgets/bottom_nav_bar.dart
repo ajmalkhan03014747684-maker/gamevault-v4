@@ -65,23 +65,33 @@ class _BottomNavBarState extends State<BottomNavBar> {
           return GestureDetector(
             onTap: () => widget.onTap(i),
             behavior: HitTestBehavior.opaque,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 22,
-                  color: active ? AppColors.primaryPurple : AppColors.muted,
+            child: AnimatedSlide(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutBack,
+              offset: active ? const Offset(0, -0.12) : Offset.zero,
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                scale: active ? 1.15 : 1.0,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon,
+                      size: 22,
+                      color: active ? AppColors.primaryPurple : AppColors.muted,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      label,
+                      style: AppText.caption(
+                        size: 11,
+                        color: active ? AppColors.primaryPurple : AppColors.muted,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: AppText.caption(
-                    size: 11,
-                    color: active ? AppColors.primaryPurple : AppColors.muted,
-                  ),
-                ),
-              ],
+              ),
             ),
           );
         }),
