@@ -6,6 +6,9 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/animated_stat_number.dart';
 import '../widgets/stagger_fade_in.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
+import '../widgets/cosmic_particles_background.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
 
@@ -143,7 +146,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
+      body: CosmicParticlesBackground(
+        child: SafeArea(
         child: Column(
           children: [
             Expanded(
@@ -270,14 +274,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     ),
                     const SizedBox(height: 12),
                     if (_loading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
+                      const ShimmerList(count: 3)
                     else if (_games.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: Text('No active games yet.', style: AppText.caption())),
+                      const EmptyState(
+                        icon: Icons.sports_esports_outlined,
+                        title: 'No active games yet',
+                        subtitle: 'Check back soon â€” new games are added regularly.',
                       )
                     else
                       ..._games.take(3).toList().asMap().entries.map((entry) {
@@ -324,6 +326,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             ),
             BottomNavBar(currentIndex: 0, onTap: widget.onNavTap),
           ],
+        ),
         ),
       ),
     );
