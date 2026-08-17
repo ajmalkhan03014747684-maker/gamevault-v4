@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
+import 'theme/app_motion.dart';
 import 'services/cooldown_storage.dart';
 import 'services/supabase_config.dart';
 import 'services/game_data_service.dart';
@@ -353,7 +354,28 @@ class _RootFlowState extends State<RootFlow> {
       },
       child: Stack(
         children: [
-          _buildCurrentScreen(),
+          // Slide + fade between steps instead of an instant swap â€”
+          // each screen already returns its own Scaffold, so this just
+          // transitions between them.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 320),
+            switchInCurve: AppMotion.smooth,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) {
+              final slide = Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(animation);
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(position: slide, child: child),
+              );
+            },
+            child: KeyedSubtree(
+              key: ValueKey(_step),
+              child: _buildCurrentScreen(),
+            ),
+          ),
           if (_activeBanner != null) _buildPayoutBanner(_activeBanner!),
         ],
       ),
