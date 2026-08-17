@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/animated_stat_number.dart';
+import '../widgets/stagger_fade_in.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
 
@@ -145,7 +147,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         child: Column(
           children: [
             Expanded(
-              child: RefreshIndicator(
+              child: AppRefreshIndicator(
                 onRefresh: _load,
                 child: ListView(
                   padding: const EdgeInsets.all(20),
@@ -278,7 +280,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         child: Center(child: Text('No active games yet.', style: AppText.caption())),
                       )
                     else
-                      ..._games.take(3).map((g) => Padding(
+                      ..._games.take(3).toList().asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final g = entry.value;
+                        return StaggerFadeIn(
+                          index: i,
+                          child: Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: GlassCard(
                               onTap: () => widget.onGameRowTapped(g),
@@ -308,7 +315,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                                 ],
                               ),
                             ),
-                          )),
+                          ),
+                        );
+                      }),
                   ],
                 ),
               ),
