@@ -5,6 +5,8 @@ import '../widgets/glowing_progress_bar.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/animated_checkmark.dart';
 import '../widgets/stagger_fade_in.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
 import '../services/missions_service.dart';
 
 /// Screen â€” Missions
@@ -95,9 +97,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
+        child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
                   Row(
@@ -115,11 +115,15 @@ class _MissionsScreenState extends State<MissionsScreen> {
                       padding: const EdgeInsets.only(bottom: 14),
                       child: Text(_error!, style: AppText.caption(size: 12, color: AppColors.dangerRed)),
                     ),
-                  if (_progress.isEmpty && _error == null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: Text('No missions available right now', style: AppText.caption())),
+                  if (_loading)
+                    const ShimmerList(count: 3)
+                  else if (_progress.isEmpty && _error == null)
+                    const EmptyState(
+                      icon: Icons.flag_outlined,
+                      title: 'No missions available right now',
+                      subtitle: 'Check back soon for new ways to earn.',
                     ),
+                  if (!_loading)
                   ..._progress.asMap().entries.map((entry) {
                     final i = entry.key;
                     final mp = entry.value;
