@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../services/game_data_service.dart';
 
 /// Screen 13 â€” Withdraw History
@@ -111,7 +112,7 @@ class _WithdrawHistoryScreenState extends State<WithdrawHistoryScreen> {
                       ? Center(
                           child: Text('No withdraw requests yet', style: AppText.caption()),
                         )
-                      : RefreshIndicator(
+                      : AppRefreshIndicator(
                           onRefresh: _load,
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
