@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/animated_stat_number.dart';
+import '../widgets/stagger_fade_in.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -78,7 +80,7 @@ class _WalletScreenState extends State<WalletScreen> {
         child: Column(
           children: [
             Expanded(
-              child: RefreshIndicator(
+              child: AppRefreshIndicator(
                 onRefresh: _load,
                 child: ListView(
                   padding: const EdgeInsets.all(20),
@@ -120,7 +122,9 @@ class _WalletScreenState extends State<WalletScreen> {
                         child: Center(child: Text('No active games yet.', style: AppText.caption())),
                       )
                     else
-                      ..._balances.map((b) {
+                      ..._balances.asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final b = entry.value;
                         final name = (b['name'] as String?) ?? 'Game';
                         final currency = (b['currency_name'] as String?) ?? 'Currency';
                         final balance = (b['balance'] as num?)?.toDouble() ?? 0;
@@ -130,7 +134,9 @@ class _WalletScreenState extends State<WalletScreen> {
                           currency: currency,
                           icon: GameInfo.fromRow({'name': name}).icon,
                         );
-                        return Padding(
+                        return StaggerFadeIn(
+                          index: i,
+                          child: Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: GlassCard(
                             padding: const EdgeInsets.all(18),
@@ -176,6 +182,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                 ),
                               ],
                             ),
+                          ),
                           ),
                         );
                       }),
