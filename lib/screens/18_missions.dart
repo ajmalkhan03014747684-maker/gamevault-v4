@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/glowing_progress_bar.dart';
 import '../widgets/cooldown_badge.dart';
+import '../widgets/animated_checkmark.dart';
 import '../services/missions_service.dart';
 
 /// Screen â€” Missions
@@ -167,7 +168,17 @@ class _MissionsScreenState extends State<MissionsScreen> {
                                 ),
                               ] else if (mp.claimed) ...[
                                 const SizedBox(height: 10),
-                                Center(child: Text('âœ“ Claimed', style: AppText.caption(size: 12, color: AppColors.successGreen))),
+                                Center(
+                                  child: Row(
+                                    key: ValueKey('claimed-${mp.mission.id}'),
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const AnimatedCheckmark(size: 16),
+                                      const SizedBox(width: 6),
+                                      Text('Claimed', style: AppText.caption(size: 12, color: AppColors.successGreen)),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ],
                           ),
