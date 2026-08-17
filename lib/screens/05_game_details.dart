@@ -5,6 +5,7 @@ import '../widgets/glowing_progress_bar.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/cyber_text_field.dart';
 import '../widgets/ad_disclosure_dialog.dart';
+import '../widgets/cooldown_badge.dart';
 import '../services/ads_service.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
@@ -161,6 +162,8 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   child: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
                 ),
                 const Spacer(),
+                const CooldownBadge(),
+                const SizedBox(width: 10),
                 const Icon(Icons.notifications_none_rounded, color: AppColors.text),
               ],
             ),
