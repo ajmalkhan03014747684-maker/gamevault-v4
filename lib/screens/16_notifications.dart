@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../services/game_data_service.dart';
 
 /// Screen 16 â€” Notifications
@@ -122,7 +123,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _notifications.isEmpty
                       ? Center(child: Text('No notifications yet', style: AppText.caption()))
-                      : RefreshIndicator(
+                      : AppRefreshIndicator(
                           onRefresh: _load,
                           child: ListView.separated(
                             controller: _scrollController,
