@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/app_refresh_indicator.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/cooldown_badge.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
@@ -122,9 +124,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: ShimmerList(count: 5),
+                    )
                   : _entries.isEmpty
-                      ? Center(child: Text('No leaderboard data yet', style: AppText.caption()))
+                      ? const EmptyState(
+                          icon: Icons.leaderboard_outlined,
+                          title: 'No leaderboard data yet',
+                          subtitle: 'Watch ads to be the first on the board.',
+                        )
                       : AppRefreshIndicator(
                           onRefresh: _load,
                           child: ListView.separated(
