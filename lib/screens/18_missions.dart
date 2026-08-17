@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/glowing_progress_bar.dart';
+import '../widgets/cooldown_badge.dart';
 import '../services/missions_service.dart';
 
-/// Screen — Missions
+/// Screen â€” Missions
 /// Shows daily, weekly, and monthly missions with live progress and a
 /// claim button once complete. Progress tracking is local for now;
 /// once Supabase is wired, incrementProgress() calls move server-side
@@ -102,6 +103,8 @@ class _MissionsScreenState extends State<MissionsScreen> {
                       GestureDetector(onTap: widget.onBack, child: const Icon(Icons.arrow_back_rounded, color: AppColors.text)),
                       const SizedBox(width: 14),
                       Text('Missions', style: AppText.heading(size: 20)),
+                      const Spacer(),
+                      const CooldownBadge(),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -145,7 +148,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text('${mp.progress}/${mp.mission.goalCount}', style: AppText.caption(size: 12)),
-                                  Text('+${mp.mission.rewardAmount.toStringAsFixed(2)} 💎', style: AppText.caption(size: 12, color: AppColors.gold)),
+                                  Text('+${mp.mission.rewardAmount.toStringAsFixed(2)} ðŸ’Ž', style: AppText.caption(size: 12, color: AppColors.gold)),
                                 ],
                               ),
                               if (mp.isComplete && !mp.claimed) ...[
@@ -164,7 +167,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
                                 ),
                               ] else if (mp.claimed) ...[
                                 const SizedBox(height: 10),
-                                Center(child: Text('✓ Claimed', style: AppText.caption(size: 12, color: AppColors.successGreen))),
+                                Center(child: Text('âœ“ Claimed', style: AppText.caption(size: 12, color: AppColors.successGreen))),
                               ],
                             ],
                           ),
