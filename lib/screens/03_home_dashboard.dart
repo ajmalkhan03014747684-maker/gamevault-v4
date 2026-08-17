@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/cooldown_badge.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
 
@@ -152,6 +153,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       children: [
                         Text('Game Vault', style: AppText.heading(size: 18)),
                         const Spacer(),
+                        const CooldownBadge(),
+                        const SizedBox(width: 10),
                         CircleAvatar(
                           radius: 18,
                           backgroundColor: AppColors.surface2,
