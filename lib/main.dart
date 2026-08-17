@@ -131,6 +131,13 @@ class _RootFlowState extends State<RootFlow> {
   Map<String, dynamic>? _activeBanner;
   final Set<String> _bannerShownIds = {};
 
+  // Ad-cooldown-ended detector â€” separate from the small display
+  // badges (which just read storage independently); this one is the
+  // single source that fires the one-time "ad ready" banner and
+  // clears the stored deadline once it passes.
+  Timer? _cooldownTicker;
+  bool _cooldownEndBannerFired = false;
+
   @override
   void initState() {
     super.initState();
@@ -138,13 +145,44 @@ class _RootFlowState extends State<RootFlow> {
     // Also check shortly after the app opens, in case something was
     // already waiting from before this session.
     Future.delayed(const Duration(seconds: 3), _pollForPayoutNotification);
+
+    _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) => _tickCooldown());
   }
 
   @override
   void dispose() {
     _pollTimer?.cancel();
     _bannerAutoHideTimer?.cancel();
+    _cooldownTicker?.cancel();
     super.dispose();
+  }
+
+  Future<void> _tickCooldown() async {
+    if (!mounted) return;
+    final end = await CooldownStorage.getCooldownEnd();
+    if (!mounted) return;
+
+    if (end == null) {
+      // No active cooldown â€” reset the fired-flag so the NEXT
+      // cooldown (started by watching another ad) gets its own banner.
+      _cooldownEndBannerFired = false;
+      return;
+    }
+
+    final secondsLeft = end.difference(DateTime.now()).inSeconds;
+    if (secondsLeft > 0) return; // still counting down, nothing to do
+
+    if (_cooldownEndBannerFired) return; // already announced this one
+    _cooldownEndBannerFired = true;
+
+    await CooldownStorage.clearCooldown();
+    if (!mounted) return;
+    _showEphemeralBanner(
+      type: 'cooldown_ready',
+      title: 'ðŸ”” Ready for your next ad!',
+      message: 'Your cooldown has ended â€” go watch an ad to earn more.',
+      duration: const Duration(seconds: 10),
+    );
   }
 
   Future<void> _pollForPayoutNotification() async {
@@ -193,9 +231,9 @@ class _RootFlowState extends State<RootFlow> {
   }
 
   /// Called when the user taps "WATCH REWARDED AD" on Game Details.
-  /// Checks the PERSISTED cooldown first. If a cooldown is still
-  /// active, route to the Cooldown screen instead of letting them
-  /// watch another ad.
+  /// Restored: routes to the full-screen Cooldown screen when a
+  /// cooldown is still active, same as before. The small CooldownBadge
+  /// in every header still shows the countdown everywhere else.
   Future<void> _handleWatchAdRequested(int currentAds, int adsRequired, double rewardAmount) async {
     final activeCooldown = await CooldownStorage.getCooldownEnd();
     if (activeCooldown != null) {
@@ -209,6 +247,26 @@ class _RootFlowState extends State<RootFlow> {
       _pendingAdsRequired = adsRequired;
       _pendingRewardAmount = rewardAmount;
       _step = _Step.adWatch;
+    });
+  }
+
+  /// Shows a transient top banner that auto-dismisses after [duration]
+  /// â€” used for both the cooldown-active tap warning and the
+  /// cooldown-just-ended notice. Nothing here is written to the
+  /// database; it only ever lives in memory for this session.
+  void _showEphemeralBanner({
+    required String type,
+    required String title,
+    required String message,
+    required Duration duration,
+  }) {
+    _bannerAutoHideTimer?.cancel();
+    setState(() {
+      _activeBanner = {'id': null, 'type': type, 'title': title, 'message': message};
+    });
+    _bannerAutoHideTimer = Timer(duration, () {
+      if (!mounted) return;
+      setState(() => _activeBanner = null);
     });
   }
 
@@ -288,9 +346,14 @@ class _RootFlowState extends State<RootFlow> {
 
   Widget _buildPayoutBanner(Map<String, dynamic> notif) {
     final isApproved = notif['type'] == 'payout_approved';
+    final isCooldownReady = notif['type'] == 'cooldown_ready';
     final title = (notif['title'] as String?) ?? (isApproved ? 'âœ… Payout Approved!' : 'âŒ Payout Update');
     final message = (notif['message'] as String?) ?? '';
-    final color = isApproved ? AppColors.successGreen : AppColors.dangerRed;
+    final color = isCooldownReady
+        ? AppColors.gold
+        : isApproved
+            ? AppColors.successGreen
+            : AppColors.dangerRed;
 
     return SafeArea(
       child: Align(
@@ -400,7 +463,13 @@ class _RootFlowState extends State<RootFlow> {
           onContinue: () async {
             final end = DateTime.now().add(const Duration(minutes: 1, seconds: 15));
             await CooldownStorage.setCooldownEnd(end);
+            _cooldownEndBannerFired = false;
             if (!mounted) return;
+            // Restored: routes to the full-screen Cooldown screen,
+            // same as before. If the user leaves it early (Mini Games
+            // / Go to Home), the small CooldownBadge + the global
+            // ticker in _tickCooldown still track it and fire the
+            // "ready" banner the moment it ends.
             setState(() => _step = _Step.cooldown);
           },
         );
