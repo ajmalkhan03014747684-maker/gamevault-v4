@@ -4,6 +4,7 @@ import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
+import '../widgets/animated_stat_number.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -157,7 +158,7 @@ class _WalletScreenState extends State<WalletScreen> {
                                         ],
                                       ),
                                     ),
-                                    Text(balance.toStringAsFixed(2), style: AppText.heading(size: 20)),
+                                    AnimatedStatNumber(value: balance, decimals: 2, style: AppText.heading(size: 20)),
                                   ],
                                 ),
                                 const SizedBox(height: 12),
