@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/app_refresh_indicator.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
 import '../services/game_data_service.dart';
 
 /// Screen 13 â€” Withdraw History
@@ -107,10 +109,15 @@ class _WithdrawHistoryScreenState extends State<WithdrawHistoryScreen> {
               ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: ShimmerList(count: 3),
+                    )
                   : filtered.isEmpty
-                      ? Center(
-                          child: Text('No withdraw requests yet', style: AppText.caption()),
+                      ? const EmptyState(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'No withdraw requests yet',
+                          subtitle: 'Requests you submit will show up here.',
                         )
                       : AppRefreshIndicator(
                           onRefresh: _load,
