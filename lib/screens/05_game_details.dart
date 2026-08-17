@@ -6,6 +6,7 @@ import '../widgets/gradient_button.dart';
 import '../widgets/cyber_text_field.dart';
 import '../widgets/ad_disclosure_dialog.dart';
 import '../widgets/cooldown_badge.dart';
+import '../widgets/animated_stat_number.dart';
 import '../services/ads_service.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
@@ -197,7 +198,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text(_balance.toStringAsFixed(2), style: AppText.heading(size: 34)),
+                    AnimatedStatNumber(value: _balance, decimals: 2, style: AppText.heading(size: 34), glow: true),
                     Text(widget.game.currency, style: AppText.caption(size: 12)),
                     const SizedBox(height: 14),
                     Row(
