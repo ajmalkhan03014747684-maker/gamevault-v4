@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/cooldown_badge.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -78,6 +79,8 @@ class _SelectGameScreenState extends State<SelectGameScreen> {
                     child: const Icon(Icons.arrow_back_rounded, color: AppColors.text),
                   ),
                   const Spacer(),
+                  const CooldownBadge(),
+                  const SizedBox(width: 10),
                   const Icon(Icons.notifications_none_rounded, color: AppColors.text),
                 ],
               ),
