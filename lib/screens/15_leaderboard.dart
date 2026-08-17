@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/cooldown_badge.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
 
-/// Screen 15 — Leaderboard
+/// Screen 15 â€” Leaderboard
 /// Real cross-user data via leaderboard_view, ranked by ads watched
 /// today (matches your original request that the app auto-detects
 /// who's watched more ads today). Note: this ranks raw ad-watch
-/// count, which can indirectly reward fast/repetitive watching — if
+/// count, which can indirectly reward fast/repetitive watching â€” if
 /// that becomes a problem, switch the ranking to total_earned instead
 /// (already available in the same data).
 class LeaderboardScreen extends StatefulWidget {
@@ -70,6 +71,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   GestureDetector(onTap: widget.onBack, child: const Icon(Icons.arrow_back_rounded, color: AppColors.text)),
                   const SizedBox(width: 14),
                   Text('Leaderboard', style: AppText.heading(size: 20)),
+                  const Spacer(),
+                  const CooldownBadge(),
                 ],
               ),
             ),
@@ -106,7 +109,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Currently showing all-time data — Weekly/Monthly filtering needs date-scoped ad_watches, not yet wired.',
+                'Currently showing all-time data â€” Weekly/Monthly filtering needs date-scoped ad_watches, not yet wired.',
                 style: AppText.caption(size: 10),
               ),
             ),
