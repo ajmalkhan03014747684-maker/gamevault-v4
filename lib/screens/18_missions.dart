@@ -4,6 +4,7 @@ import '../widgets/glass_card.dart';
 import '../widgets/glowing_progress_bar.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/animated_checkmark.dart';
+import '../widgets/stagger_fade_in.dart';
 import '../services/missions_service.dart';
 
 /// Screen â€” Missions
@@ -119,7 +120,12 @@ class _MissionsScreenState extends State<MissionsScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 40),
                       child: Center(child: Text('No missions available right now', style: AppText.caption())),
                     ),
-                  ..._progress.map((mp) => Padding(
+                  ..._progress.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final mp = entry.value;
+                    return StaggerFadeIn(
+                      index: i,
+                      child: Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: GlassCard(
                           child: Column(
@@ -183,7 +189,9 @@ class _MissionsScreenState extends State<MissionsScreen> {
                             ],
                           ),
                         ),
-                      )),
+                      ),
+                    );
+                  }),
                 ],
               ),
       ),
