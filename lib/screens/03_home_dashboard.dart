@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
+import '../widgets/animated_stat_number.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
 
@@ -203,7 +204,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                                     const SizedBox(width: 8),
                                     _loading
                                         ? const SizedBox(width: 60, height: 24, child: LinearProgressIndicator())
-                                        : Text('$_adsToday', style: AppText.heading(size: 32)),
+                                        : AnimatedStatNumber(value: _adsToday.toDouble(), style: AppText.heading(size: 32)),
                                   ],
                                 ),
                               ],
@@ -229,7 +230,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                                     const SizedBox(width: 8),
                                     _loading
                                         ? const SizedBox(width: 60, height: 24, child: LinearProgressIndicator())
-                                        : Text('$_totalAds', style: AppText.heading(size: 32)),
+                                        : AnimatedStatNumber(
+                                            value: _totalAds.toDouble(),
+                                            style: AppText.heading(size: 32),
+                                            glow: true,
+                                          ),
                                   ],
                                 ),
                               ],
