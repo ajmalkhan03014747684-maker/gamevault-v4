@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/ads_service.dart';
 import '../services/game_data_service.dart';
@@ -61,6 +62,9 @@ class _AdWatchScreenState extends State<AdWatchScreen>
       if (!mounted) return;
       final cycleCompleted = info['cycle_completed'] == true;
       final earned = (info['earned'] as num?)?.toDouble() ?? 0;
+      // Bigger haptic for the real-currency moment, lighter for a
+      // normal progress tick.
+      cycleCompleted ? HapticFeedback.mediumImpact() : HapticFeedback.lightImpact();
       widget.onAdComplete(cycleCompleted, earned);
     } on GameDataException catch (e) {
       if (!mounted) return;
