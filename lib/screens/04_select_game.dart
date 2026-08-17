@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/cooldown_badge.dart';
+import '../widgets/stagger_fade_in.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -119,7 +120,9 @@ class _SelectGameScreenState extends State<SelectGameScreen> {
                             itemBuilder: (context, i) {
                               final g = _games[i];
                               final isActive = g.name == widget.activeGameName;
-                              return GlassCard(
+                              return StaggerFadeIn(
+                                index: i,
+                                child: GlassCard(
                                 onTap: () => widget.onGameSelected(g),
                                 padding: const EdgeInsets.all(14),
                                 borderColor: isActive ? AppColors.primaryPurple : null,
@@ -162,6 +165,7 @@ class _SelectGameScreenState extends State<SelectGameScreen> {
                                     ),
                                     const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
                                   ],
+                                ),
                                 ),
                               );
                             },
