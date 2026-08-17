@@ -3,6 +3,7 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/gradient_button.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/cooldown_badge.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -85,9 +86,15 @@ class _WalletScreenState extends State<WalletScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('My Wallet', style: AppText.heading(size: 22)),
-                        GestureDetector(
-                          onTap: widget.onHistoryTapped,
-                          child: Text('History', style: AppText.caption(color: AppColors.primaryPurple)),
+                        Row(
+                          children: [
+                            const CooldownBadge(),
+                            const SizedBox(width: 10),
+                            GestureDetector(
+                              onTap: widget.onHistoryTapped,
+                              child: Text('History', style: AppText.caption(color: AppColors.primaryPurple)),
+                            ),
+                          ],
                         ),
                       ],
                     ),
