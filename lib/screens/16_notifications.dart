@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/app_refresh_indicator.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
 import '../services/game_data_service.dart';
 
 /// Screen 16 â€” Notifications
@@ -120,9 +122,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: ShimmerList(count: 4),
+                    )
                   : _notifications.isEmpty
-                      ? Center(child: Text('No notifications yet', style: AppText.caption()))
+                      ? const EmptyState(
+                          icon: Icons.notifications_none_rounded,
+                          title: 'No notifications yet',
+                          subtitle: "We'll let you know when something happens.",
+                        )
                       : AppRefreshIndicator(
                           onRefresh: _load,
                           child: ListView.separated(
