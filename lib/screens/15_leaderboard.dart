@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../widgets/cooldown_badge.dart';
 import '../services/game_data_service.dart';
 import '../services/auth_service.dart';
@@ -124,7 +125,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _entries.isEmpty
                       ? Center(child: Text('No leaderboard data yet', style: AppText.caption()))
-                      : RefreshIndicator(
+                      : AppRefreshIndicator(
                           onRefresh: _load,
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
