@@ -7,6 +7,8 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/animated_stat_number.dart';
 import '../widgets/stagger_fade_in.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -112,14 +114,12 @@ class _WalletScreenState extends State<WalletScreen> {
                     const SizedBox(height: 12),
 
                     if (_loading)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 30),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
+                      const ShimmerList(count: 2)
                     else if (_balances.isEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Center(child: Text('No active games yet.', style: AppText.caption())),
+                      const EmptyState(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'No active games yet',
+                        subtitle: 'Currencies you earn will show up here.',
                       )
                     else
                       ..._balances.asMap().entries.map((entry) {
