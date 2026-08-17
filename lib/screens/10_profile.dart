@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/app_refresh_indicator.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/connection_status_dot.dart';
 import '../services/auth_service.dart';
@@ -86,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: [
             Expanded(
-              child: RefreshIndicator(
+              child: AppRefreshIndicator(
                 onRefresh: _load,
                 child: ListView(
                   padding: const EdgeInsets.all(20),
