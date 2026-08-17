@@ -4,6 +4,7 @@ import 'theme/app_theme.dart';
 import 'services/cooldown_storage.dart';
 import 'services/supabase_config.dart';
 import 'services/game_data_service.dart';
+import 'widgets/cooldown_badge.dart';
 import 'screens/01_splash_screen.dart';
 import 'screens/02_login_register.dart';
 import 'screens/03_home_dashboard.dart';
@@ -147,6 +148,11 @@ class _RootFlowState extends State<RootFlow> {
     Future.delayed(const Duration(seconds: 3), _pollForPayoutNotification);
 
     _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) => _tickCooldown());
+
+    // Any CooldownBadge, anywhere in the app, pings this on tap â€”
+    // listening once here means every screen gets a clickable badge
+    // for free with zero constructor changes.
+    CooldownNav.tapSignal.addListener(_onCooldownBadgeTapped);
   }
 
   @override
@@ -154,7 +160,17 @@ class _RootFlowState extends State<RootFlow> {
     _pollTimer?.cancel();
     _bannerAutoHideTimer?.cancel();
     _cooldownTicker?.cancel();
+    CooldownNav.tapSignal.removeListener(_onCooldownBadgeTapped);
     super.dispose();
+  }
+
+  void _onCooldownBadgeTapped() {
+    if (!mounted) return;
+    // Don't jump to the Cooldown screen from splash/login, and don't
+    // bother if there's no active cooldown after all (e.g. a stale
+    // tap right as it expired).
+    if (_step == _Step.splash || _step == _Step.login) return;
+    setState(() => _step = _Step.cooldown);
   }
 
   Future<void> _tickCooldown() async {
