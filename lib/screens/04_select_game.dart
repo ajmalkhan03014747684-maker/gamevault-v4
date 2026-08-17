@@ -3,6 +3,8 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/cooldown_badge.dart';
 import '../widgets/stagger_fade_in.dart';
+import '../widgets/shimmer_box.dart';
+import '../widgets/empty_state.dart';
 import '../services/game_data_service.dart';
 import '03_home_dashboard.dart';
 
@@ -102,14 +104,15 @@ class _SelectGameScreenState extends State<SelectGameScreen> {
               ),
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: ShimmerList(count: 4),
+                    )
                   : _games.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No games available right now.\nCheck back soon!',
-                            textAlign: TextAlign.center,
-                            style: AppText.caption(),
-                          ),
+                      ? const EmptyState(
+                          icon: Icons.videogame_asset_outlined,
+                          title: 'No games available right now',
+                          subtitle: 'Check back soon!',
                         )
                       : RefreshIndicator(
                           onRefresh: _load,
