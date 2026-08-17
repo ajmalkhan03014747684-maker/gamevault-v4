@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/cooldown_badge.dart';
 
 class MiniGameInfo {
   final String name;
@@ -19,10 +20,10 @@ const kMiniGames = [
   MiniGameInfo('Space Dodge', Icons.rocket_launch_rounded, AppColors.primaryPurple),
 ];
 
-/// Screen 9 — Mini Games Hub
+/// Screen 9 â€” Mini Games Hub
 /// IMPORTANT: none of these games grant currency, ad progress, or
 /// withdrawal eligibility. Entertainment only, fully isolated from the
-/// reward economy — do not wire any of these into balance/progress state.
+/// reward economy â€” do not wire any of these into balance/progress state.
 class MiniGamesHubScreen extends StatelessWidget {
   final VoidCallback onBack;
 
@@ -54,6 +55,7 @@ class MiniGamesHubScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const CooldownBadge(),
                 ],
               ),
             ),
@@ -91,7 +93,7 @@ class MiniGamesHubScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(AppRadius.card),
                             ),
                             title: Text('Coming Soon', style: AppText.body(size: 16, weight: FontWeight.w700)),
-                            content: Text('${g.name} isn\'t ready yet — check back soon!',
+                            content: Text('${g.name} isn\'t ready yet â€” check back soon!',
                                 style: AppText.caption()),
                             actions: [
                               TextButton(
@@ -122,7 +124,7 @@ class MiniGamesHubScreen extends StatelessWidget {
   }
 }
 
-/// Simple playable reaction-tap runner. No currency/reward wiring —
+/// Simple playable reaction-tap runner. No currency/reward wiring â€”
 /// entertainment only, per the Mini Games isolation requirement.
 class FastRunnerGame extends StatefulWidget {
   const FastRunnerGame({super.key});
@@ -186,7 +188,7 @@ class _FastRunnerGameState extends State<FastRunnerGame> {
             left: 24,
             right: 24,
             child: Text(
-              'Tap the runner as fast as you can! (Entertainment only — no rewards)',
+              'Tap the runner as fast as you can! (Entertainment only â€” no rewards)',
               textAlign: TextAlign.center,
               style: AppText.caption(size: 12),
             ),
