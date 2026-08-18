@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/game_data_service.dart';
+import '../services/sound_service.dart';
 
 /// Checked once per app session and cached, so the ~6 screens that all
 /// show the bottom nav don't each fire their own query. Set back to
@@ -63,7 +64,10 @@ class _BottomNavBarState extends State<BottomNavBar> {
           final active = i == widget.currentIndex;
           final (icon, label) = _items[i];
           return GestureDetector(
-            onTap: () => widget.onTap(i),
+            onTap: () {
+              SoundService.instance.playClick();
+              widget.onTap(i);
+            },
             behavior: HitTestBehavior.opaque,
             child: AnimatedSlide(
               duration: const Duration(milliseconds: 220),
