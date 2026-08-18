@@ -4,6 +4,7 @@ import '../widgets/glass_card.dart';
 import '../widgets/app_refresh_indicator.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/cooldown_badge.dart';
+import '../widgets/sound_toggle.dart';
 import '../widgets/animated_stat_number.dart';
 import '../widgets/stagger_fade_in.dart';
 import '../widgets/shimmer_box.dart';
@@ -14,7 +15,7 @@ import '../services/auth_service.dart';
 
 /// Represents a game loaded live from Supabase.
 ///
-/// FIX: previously had no `id` field at all â€” every screen downstream
+/// FIX: previously had no `id` field at all Ã¢â‚¬â€ every screen downstream
 /// (Game Details, Ad Watch, Withdraw) was using `name` as a stand-in
 /// for the database game_id. Since that column is a uuid, every
 /// threshold/balance/withdraw lookup for that game was silently
@@ -49,7 +50,7 @@ class GameInfo {
 
 const kFallbackGames = <GameInfo>[];
 
-/// Screen 3 â€” Home Dashboard
+/// Screen 3 Ã¢â‚¬â€ Home Dashboard
 class HomeDashboardScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final VoidCallback onSelectGameTapped;
@@ -160,6 +161,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       children: [
                         Text('Game Vault', style: AppText.heading(size: 18)),
                         const Spacer(),
+                        const SoundToggle(size: 20),
+                        const SizedBox(width: 12),
                         const CooldownBadge(),
                         const SizedBox(width: 10),
                         CircleAvatar(
@@ -192,7 +195,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
                     // FIX: Total Balance card removed (a single sum
                     // across different games' currencies never meant
-                    // anything real â€” see Wallet for the real
+                    // anything real Ã¢â‚¬â€ see Wallet for the real
                     // per-currency breakdown). Ads Watched Today now
                     // takes the full-width card spot instead.
                     GlassCard(
@@ -279,7 +282,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       const EmptyState(
                         icon: Icons.sports_esports_outlined,
                         title: 'No active games yet',
-                        subtitle: 'Check back soon â€” new games are added regularly.',
+                        subtitle: 'Check back soon Ã¢â‚¬â€ new games are added regularly.',
                       )
                     else
                       ..._games.take(3).toList().asMap().entries.map((entry) {
