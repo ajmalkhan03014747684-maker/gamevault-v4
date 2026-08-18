@@ -4,13 +4,14 @@ import '../widgets/glass_card.dart';
 import '../widgets/app_refresh_indicator.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/connection_status_dot.dart';
+import '../widgets/sound_toggle.dart';
 import '../services/auth_service.dart';
 import '../services/game_data_service.dart';
 
-/// Screen 10 â€” Profile
+/// Screen 10 Ã¢â‚¬â€ Profile
 /// Real username, real stats, real admin role check.
 ///
-/// FIX: "Total Earned" removed â€” it summed balances across every
+/// FIX: "Total Earned" removed Ã¢â‚¬â€ it summed balances across every
 /// game's currency into one number, which was never meaningful once
 /// games have different currencies (see Wallet for the real
 /// per-currency breakdown).
@@ -118,7 +119,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Row(
                       children: [
                         Expanded(child: _StatCol(label: 'Total Ads', value: '$_totalAds')),
-                        Expanded(child: _StatCol(label: 'Member Since', value: _memberSince.isNotEmpty ? _memberSince : 'â€”')),
+                        Expanded(child: _StatCol(label: 'Member Since', value: _memberSince.isNotEmpty ? _memberSince : 'Ã¢â‚¬â€')),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -126,6 +127,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _MenuRow(icon: Icons.security_rounded, label: 'Security', onTap: widget.onSecurityTapped),
                     _MenuRow(icon: Icons.notifications_none_rounded, label: 'Notifications', onTap: widget.onNotificationsTapped),
                     _MenuRow(icon: Icons.language_rounded, label: 'Language', onTap: widget.onLanguageTapped),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: GlassCard(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: const SoundToggleRow(),
+                      ),
+                    ),
                     if (_isAdmin) ...[
                       const SizedBox(height: 8),
                       _MenuRow(
