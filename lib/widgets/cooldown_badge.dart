@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_motion.dart';
 import '../services/cooldown_storage.dart';
+import '../services/sound_service.dart';
 
 /// Lightweight global "please open the Cooldown screen" signal.
 ///
@@ -12,7 +13,7 @@ import '../services/cooldown_storage.dart';
 /// an onTap callback through every one of those screens' constructors
 /// just for this, tapping the badge pings this shared notifier and
 /// RootFlow (in main.dart) listens for it once, centrally, and
-/// navigates. Nothing here is persisted â€” it's purely an in-memory
+/// navigates. Nothing here is persisted Ã¢â‚¬â€ it's purely an in-memory
 /// tap signal for this session.
 class CooldownNav {
   CooldownNav._();
@@ -20,8 +21,8 @@ class CooldownNav {
   static void requestOpen() => tapSignal.value++;
 }
 
-/// Small compact "â± 01:08" badge shown in a screen's header while an
-/// ad cooldown is active â€” renders nothing when there isn't one.
+/// Small compact "Ã¢ÂÂ± 01:08" badge shown in a screen's header while an
+/// ad cooldown is active Ã¢â‚¬â€ renders nothing when there isn't one.
 ///
 /// - Animated: pulses a soft glow continuously while counting down
 ///   (mirrors the reference app's livePulse treatment).
@@ -83,6 +84,7 @@ class _CooldownBadgeState extends State<CooldownBadge> with SingleTickerProvider
 
   void _handleTap() {
     HapticFeedback.selectionClick();
+    SoundService.instance.playClick();
     CooldownNav.requestOpen();
   }
 
