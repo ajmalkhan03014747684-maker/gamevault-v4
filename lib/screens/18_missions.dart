@@ -8,8 +8,9 @@ import '../widgets/stagger_fade_in.dart';
 import '../widgets/shimmer_box.dart';
 import '../widgets/empty_state.dart';
 import '../services/missions_service.dart';
+import '../services/sound_service.dart';
 
-/// Screen â€” Missions
+/// Screen Ã¢â‚¬â€ Missions
 /// Shows daily, weekly, and monthly missions with live progress and a
 /// claim button once complete. Progress tracking is local for now;
 /// once Supabase is wired, incrementProgress() calls move server-side
@@ -59,6 +60,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
       final credited = await MissionsService.instance.claim(missionId);
       if (!mounted) return;
       if (credited > 0) {
+        SoundService.instance.playMissionClaim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('+${credited.toStringAsFixed(2)} claimed!', style: AppText.body(color: Colors.white))),
         );
@@ -159,7 +161,7 @@ class _MissionsScreenState extends State<MissionsScreen> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text('${mp.progress}/${mp.mission.goalCount}', style: AppText.caption(size: 12)),
-                                  Text('+${mp.mission.rewardAmount.toStringAsFixed(2)} ðŸ’Ž', style: AppText.caption(size: 12, color: AppColors.gold)),
+                                  Text('+${mp.mission.rewardAmount.toStringAsFixed(2)} Ã°Å¸â€™Å½', style: AppText.caption(size: 12, color: AppColors.gold)),
                                 ],
                               ),
                               if (mp.isComplete && !mp.claimed) ...[
