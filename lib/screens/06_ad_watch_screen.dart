@@ -3,12 +3,13 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../services/ads_service.dart';
 import '../services/game_data_service.dart';
+import '../services/sound_service.dart';
 
-/// Screen 6 â€” Ad Watch Screen
+/// Screen 6 Ã¢â‚¬â€ Ad Watch Screen
 ///
 /// FIX: now calls recordAdWatch, which auto-credits the cycle reward
 /// the moment this ad completes a full cycle (matching the reference
-/// app) â€” no separate manual claim step. The result tells us whether
+/// app) Ã¢â‚¬â€ no separate manual claim step. The result tells us whether
 /// this ad completed a cycle so the reward screen can show the real
 /// amount earned instead of a generic "+1 progress".
 class AdWatchScreen extends StatefulWidget {
@@ -65,10 +66,11 @@ class _AdWatchScreenState extends State<AdWatchScreen>
       // Bigger haptic for the real-currency moment, lighter for a
       // normal progress tick.
       cycleCompleted ? HapticFeedback.mediumImpact() : HapticFeedback.lightImpact();
+      cycleCompleted ? SoundService.instance.playCoin() : SoundService.instance.playAdWatch();
       widget.onAdComplete(cycleCompleted, earned);
     } on GameDataException catch (e) {
       if (!mounted) return;
-      // Ad played, but logging failed (e.g. RLS/schema issue) â€” show
+      // Ad played, but logging failed (e.g. RLS/schema issue) Ã¢â‚¬â€ show
       // the real error instead of silently pretending it worked.
       setState(() => _errorMessage = e.message);
     }
