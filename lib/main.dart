@@ -5,7 +5,9 @@ import 'theme/app_motion.dart';
 import 'services/cooldown_storage.dart';
 import 'services/supabase_config.dart';
 import 'services/game_data_service.dart';
+import 'services/sound_service.dart';
 import 'widgets/cooldown_badge.dart';
+import 'widgets/sound_toggle.dart';
 import 'screens/01_splash_screen.dart';
 import 'screens/02_login_register.dart';
 import 'screens/03_home_dashboard.dart';
@@ -42,6 +44,7 @@ import 'screens/admin/admin_danger_zone_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseConfig.init();
+  await SoundService.instance.init();
   runApp(const GameVaultApp());
 }
 
@@ -61,9 +64,9 @@ class GameVaultApp extends StatelessWidget {
 
 /// Full screen flow controller.
 ///
-/// FIX: Daily Check-in removed entirely (per product decision â€” the
+/// FIX: Daily Check-in removed entirely (per product decision Ã¢â‚¬â€ the
 /// feature and its admin screen are gone, not just hidden).
-/// FIX: `_availableGames` cache removed â€” Select Game / Games section
+/// FIX: `_availableGames` cache removed Ã¢â‚¬â€ Select Game / Games section
 /// now fetches its own live list (see 04_select_game.dart), so there's
 /// nothing to keep in sync here anymore.
 /// FIX: every place that used to pass a game's display NAME as its
@@ -112,7 +115,7 @@ enum _Step {
 class _RootFlowState extends State<RootFlow> {
   _Step _step = _Step.splash;
   GameInfo? _selectedGame;
-  // Transient â€” filled in by Game Details with REAL per-game data
+  // Transient Ã¢â‚¬â€ filled in by Game Details with REAL per-game data
   // right before handing off to the ad flow. No fake shared counter.
   int _pendingCurrentAds = 0;
   int _pendingAdsRequired = 0;
@@ -125,7 +128,7 @@ class _RootFlowState extends State<RootFlow> {
   // Polls for a new (unread) payout_approved / payout_rejected
   // notification while the app is open, shows a banner for 10
   // seconds, then auto-dismisses. The notification itself is NOT
-  // marked read by the banner â€” it stays in the Notifications screen
+  // marked read by the banner Ã¢â‚¬â€ it stays in the Notifications screen
   // permanently until the user actually opens it there.
   // ---------------------------------------------------------------
   Timer? _pollTimer;
@@ -133,7 +136,7 @@ class _RootFlowState extends State<RootFlow> {
   Map<String, dynamic>? _activeBanner;
   final Set<String> _bannerShownIds = {};
 
-  // Ad-cooldown-ended detector â€” separate from the small display
+  // Ad-cooldown-ended detector Ã¢â‚¬â€ separate from the small display
   // badges (which just read storage independently); this one is the
   // single source that fires the one-time "ad ready" banner and
   // clears the stored deadline once it passes.
@@ -150,10 +153,15 @@ class _RootFlowState extends State<RootFlow> {
 
     _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) => _tickCooldown());
 
-    // Any CooldownBadge, anywhere in the app, pings this on tap â€”
+    // Any CooldownBadge, anywhere in the app, pings this on tap Ã¢â‚¬â€
     // listening once here means every screen gets a clickable badge
     // for free with zero constructor changes.
     CooldownNav.tapSignal.addListener(_onCooldownBadgeTapped);
+
+    // Background music starts once, on by default, and keeps playing
+    // across every screen for the rest of the session (it lives here
+    // in RootFlow, which never gets disposed while the app is open).
+    SoundService.instance.startBackgroundMusic();
   }
 
   @override
@@ -180,7 +188,7 @@ class _RootFlowState extends State<RootFlow> {
     if (!mounted) return;
 
     if (end == null) {
-      // No active cooldown â€” reset the fired-flag so the NEXT
+      // No active cooldown Ã¢â‚¬â€ reset the fired-flag so the NEXT
       // cooldown (started by watching another ad) gets its own banner.
       _cooldownEndBannerFired = false;
       return;
@@ -194,10 +202,11 @@ class _RootFlowState extends State<RootFlow> {
 
     await CooldownStorage.clearCooldown();
     if (!mounted) return;
+    SoundService.instance.playCooldownReady();
     _showEphemeralBanner(
       type: 'cooldown_ready',
-      title: 'ðŸ”” Ready for your next ad!',
-      message: 'Your cooldown has ended â€” go watch an ad to earn more.',
+      title: 'Ã°Å¸â€â€ Ready for your next ad!',
+      message: 'Your cooldown has ended Ã¢â‚¬â€ go watch an ad to earn more.',
       duration: const Duration(seconds: 10),
     );
   }
@@ -215,6 +224,11 @@ class _RootFlowState extends State<RootFlow> {
 
     _bannerShownIds.add(id);
     _bannerAutoHideTimer?.cancel();
+    if (notif['type'] == 'payout_approved') {
+      SoundService.instance.playApproved();
+    } else if (notif['type'] == 'payout_rejected') {
+      SoundService.instance.playRejected();
+    }
     setState(() => _activeBanner = notif);
     _bannerAutoHideTimer = Timer(const Duration(seconds: 10), () {
       if (!mounted) return;
@@ -259,6 +273,7 @@ class _RootFlowState extends State<RootFlow> {
       return;
     }
     if (!mounted) return;
+    await SoundService.instance.pauseForAd();
     setState(() {
       _pendingCurrentAds = currentAds;
       _pendingAdsRequired = adsRequired;
@@ -268,7 +283,7 @@ class _RootFlowState extends State<RootFlow> {
   }
 
   /// Shows a transient top banner that auto-dismisses after [duration]
-  /// â€” used for both the cooldown-active tap warning and the
+  /// Ã¢â‚¬â€ used for both the cooldown-active tap warning and the
   /// cooldown-just-ended notice. Nothing here is written to the
   /// database; it only ever lives in memory for this session.
   void _showEphemeralBanner({
@@ -354,7 +369,7 @@ class _RootFlowState extends State<RootFlow> {
       },
       child: Stack(
         children: [
-          // Slide + fade between steps instead of an instant swap â€”
+          // Slide + fade between steps instead of an instant swap Ã¢â‚¬â€
           // each screen already returns its own Scaffold, so this just
           // transitions between them.
           AnimatedSwitcher(
@@ -385,7 +400,7 @@ class _RootFlowState extends State<RootFlow> {
   Widget _buildPayoutBanner(Map<String, dynamic> notif) {
     final isApproved = notif['type'] == 'payout_approved';
     final isCooldownReady = notif['type'] == 'cooldown_ready';
-    final title = (notif['title'] as String?) ?? (isApproved ? 'âœ… Payout Approved!' : 'âŒ Payout Update');
+    final title = (notif['title'] as String?) ?? (isApproved ? 'Ã¢Å“â€¦ Payout Approved!' : 'Ã¢ÂÅ’ Payout Update');
     final message = (notif['message'] as String?) ?? '';
     final color = isCooldownReady
         ? AppColors.gold
@@ -483,12 +498,16 @@ class _RootFlowState extends State<RootFlow> {
           gameId: _selectedGame!.id,
           rewardAmount: _pendingRewardAmount,
           onAdComplete: (cycleCompleted, earned) => setState(() {
+            SoundService.instance.resumeAfterAd();
             _pendingCurrentAds += 1;
             _pendingCycleCompleted = cycleCompleted;
             _pendingEarned = earned;
             _step = _Step.reward;
           }),
-          onAdFailed: () => setState(() => _step = _Step.gameDetails),
+          onAdFailed: () {
+            SoundService.instance.resumeAfterAd();
+            setState(() => _step = _Step.gameDetails);
+          },
         );
 
       case _Step.reward:
