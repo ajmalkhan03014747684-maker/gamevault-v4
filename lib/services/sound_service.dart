@@ -27,6 +27,32 @@ class SoundService {
   final ValueNotifier<bool> muted = ValueNotifier<bool>(false);
 
   Future<void> init() async {
+    // FIX (background music turning off on nav taps): audioplayers
+    // defaults to requesting exclusive Android "audio focus" for every
+    // player. When a short SFX (like the nav click) started, Android
+    // paused the looping music player to hand focus to the SFX player
+    // â€” and nothing ever told the music player to resume afterward.
+    // Setting focus to "none" globally means every player in this app
+    // just mixes together instead of fighting over exclusive focus.
+    try {
+      await AudioPlayer.global.setAudioContext(const AudioContext(
+        android: AudioContextAndroid(
+          isSpeakerphoneOn: true,
+          stayAwake: false,
+          contentType: AndroidContentType.sonification,
+          usageType: AndroidUsageType.assistanceSonification,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.ambient,
+          options: {AVAudioSessionOptions.mixWithOthers},
+        ),
+      ));
+    } catch (_) {
+      // Non-critical â€” worst case players fall back to default focus
+      // behavior, which is still better than crashing on init.
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       muted.value = prefs.getBool(_mutedKey) ?? false;
@@ -60,6 +86,20 @@ class SoundService {
     if (_musicStarted) return;
     _musicStarted = true;
     try {
+      // Belt-and-braces: set it directly on this specific player too,
+      // not just as the global default, in case this player was
+      // constructed before the global default was applied.
+      await _musicPlayer.setAudioContext(const AudioContext(
+        android: AudioContextAndroid(
+          contentType: AndroidContentType.sonification,
+          usageType: AndroidUsageType.assistanceSonification,
+          audioFocus: AndroidAudioFocus.none,
+        ),
+        iOS: AudioContextIOS(
+          category: AVAudioSessionCategory.ambient,
+          options: {AVAudioSessionOptions.mixWithOthers},
+        ),
+      ));
       await _musicPlayer.setReleaseMode(ReleaseMode.loop);
       await _musicPlayer.setVolume(0.35);
       if (!muted.value) {
