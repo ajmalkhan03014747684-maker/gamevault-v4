@@ -35,7 +35,7 @@ class SoundService {
     // Setting focus to "none" globally means every player in this app
     // just mixes together instead of fighting over exclusive focus.
     try {
-      await AudioPlayer.global.setAudioContext(const AudioContext(
+      await AudioPlayer.global.setAudioContext(AudioContext(
         android: AudioContextAndroid(
           isSpeakerphoneOn: true,
           stayAwake: false,
@@ -89,7 +89,7 @@ class SoundService {
       // Belt-and-braces: set it directly on this specific player too,
       // not just as the global default, in case this player was
       // constructed before the global default was applied.
-      await _musicPlayer.setAudioContext(const AudioContext(
+      await _musicPlayer.setAudioContext(AudioContext(
         android: AudioContextAndroid(
           contentType: AndroidContentType.sonification,
           usageType: AndroidUsageType.assistanceSonification,
