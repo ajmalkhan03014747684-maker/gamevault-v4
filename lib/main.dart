@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_motion.dart';
 import 'services/cooldown_storage.dart';
@@ -10,6 +11,8 @@ import 'widgets/cooldown_badge.dart';
 import 'widgets/sound_toggle.dart';
 import 'screens/01_splash_screen.dart';
 import 'screens/02_login_register.dart';
+import 'screens/19_forgot_password.dart';
+import 'screens/20_reset_password.dart';
 import 'screens/03_home_dashboard.dart';
 import 'screens/04_select_game.dart';
 import 'screens/05_game_details.dart';
@@ -81,6 +84,8 @@ class RootFlow extends StatefulWidget {
 enum _Step {
   splash,
   login,
+  forgotPassword,
+  resetPassword,
   home,
   selectGame,
   gameDetails,
@@ -143,6 +148,8 @@ class _RootFlowState extends State<RootFlow> {
   Timer? _cooldownTicker;
   bool _cooldownEndBannerFired = false;
 
+  StreamSubscription<AuthState>? _authSub;
+
   @override
   void initState() {
     super.initState();
@@ -162,6 +169,17 @@ class _RootFlowState extends State<RootFlow> {
     // across every screen for the rest of the session (it lives here
     // in RootFlow, which never gets disposed while the app is open).
     SoundService.instance.startBackgroundMusic();
+
+    // Password recovery: supabase_flutter automatically detects when
+    // the app was opened via the reset-password deep link (as long as
+    // the Android manifest's intent-filter matches) and fires this
+    // event â€” no manual link parsing needed on our end.
+    _authSub = supabase.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        if (!mounted) return;
+        setState(() => _step = _Step.resetPassword);
+      }
+    });
   }
 
   @override
@@ -170,6 +188,7 @@ class _RootFlowState extends State<RootFlow> {
     _bannerAutoHideTimer?.cancel();
     _cooldownTicker?.cancel();
     CooldownNav.tapSignal.removeListener(_onCooldownBadgeTapped);
+    _authSub?.cancel();
     super.dispose();
   }
 
@@ -352,6 +371,8 @@ class _RootFlowState extends State<RootFlow> {
         break;
       case _Step.splash:
       case _Step.login:
+      case _Step.forgotPassword:
+      case _Step.resetPassword:
       case _Step.home:
         break;
     }
@@ -458,6 +479,17 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.login:
         return LoginRegisterScreen(
           onLoginSuccess: () => setState(() => _step = _Step.home),
+          onForgotPasswordTapped: () => setState(() => _step = _Step.forgotPassword),
+        );
+
+      case _Step.forgotPassword:
+        return ForgotPasswordScreen(
+          onBack: () => setState(() => _step = _Step.login),
+        );
+
+      case _Step.resetPassword:
+        return ResetPasswordScreen(
+          onDone: () => setState(() => _step = _Step.login),
         );
 
       case _Step.home:
