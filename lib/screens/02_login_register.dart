@@ -4,14 +4,15 @@ import '../widgets/gradient_button.dart';
 import '../widgets/cyber_text_field.dart';
 import '../services/auth_service.dart';
 
-/// Screen 2 — Login / Register
+/// Screen 2 â€” Login / Register
 /// Now wired to real Supabase Auth via AuthService instead of a
 /// simulated delay. Register mode also creates a matching
 /// user_profiles row.
 class LoginRegisterScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
+  final VoidCallback onForgotPasswordTapped;
 
-  const LoginRegisterScreen({super.key, required this.onLoginSuccess});
+  const LoginRegisterScreen({super.key, required this.onLoginSuccess, required this.onForgotPasswordTapped});
 
   @override
   State<LoginRegisterScreen> createState() => _LoginRegisterScreenState();
@@ -149,7 +150,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                      onPressed: () {},
+                      onPressed: widget.onForgotPasswordTapped,
                       child: Text('Forgot Password?',
                           style: AppText.caption(
                               size: 13, color: AppColors.primaryPurple)),
@@ -235,5 +236,4 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
     );
   }
 }
-
 
