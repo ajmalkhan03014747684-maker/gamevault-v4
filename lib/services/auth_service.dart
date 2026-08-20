@@ -40,7 +40,7 @@ class AuthService {
       if (userId != null) {
         // Create the matching user_profiles row. If your existing
         // schema auto-creates this via a trigger, this upsert is
-        // still safe — it won't create duplicates.
+        // still safe â€” it won't create duplicates.
         await supabase.from('user_profiles').upsert({
           'id': userId,
           'email': email,
@@ -59,10 +59,10 @@ class AuthService {
     await supabase.auth.signOut();
   }
 
-  /// Real anonymous sign-in via Supabase Auth — replaces the old
+  /// Real anonymous sign-in via Supabase Auth â€” replaces the old
   /// "Continue as Guest" behavior of just skipping auth entirely
   /// with no real session. Requires Anonymous sign-ins to be enabled
-  /// in Supabase → Authentication → Providers (it's off by default).
+  /// in Supabase â†’ Authentication â†’ Providers (it's off by default).
   Future<AuthResult> signInAsGuest() async {
     try {
       final response = await supabase.auth.signInAnonymously();
@@ -78,7 +78,7 @@ class AuthService {
       return AuthResult(
         success: false,
         errorMessage: e.message.contains('Anonymous')
-            ? 'Guest login isn\'t enabled yet. Enable Anonymous sign-ins in Supabase → Authentication → Providers.'
+            ? 'Guest login isn\'t enabled yet. Enable Anonymous sign-ins in Supabase â†’ Authentication â†’ Providers.'
             : e.message,
       );
     } catch (e) {
@@ -105,7 +105,7 @@ class AuthService {
   }
 
   // ---------------------------------------------------------------
-  // PROFILE — Edit Profile, Security, Language, Notifications
+  // PROFILE â€” Edit Profile, Security, Language, Notifications
   // ---------------------------------------------------------------
   Future<Map<String, dynamic>> getProfile() async {
     final uid = currentUser?.id;
@@ -129,7 +129,7 @@ class AuthService {
   }
 
   /// Changes the account password. Supabase requires the user to have
-  /// a recent session (they do, since they're already logged in) —
+  /// a recent session (they do, since they're already logged in) â€”
   /// no separate "current password" re-entry is needed by the SDK,
   /// though asking for it in the UI first is still good practice.
   Future<void> updatePassword(String newPassword) async {
@@ -139,6 +139,24 @@ class AuthService {
       throw AuthServiceException(e.message);
     } catch (e) {
       throw AuthServiceException('Could not update password: $e');
+    }
+  }
+
+  /// Sends a password-reset email for someone who's forgotten their
+  /// password (not logged in). The link inside that email opens this
+  /// app directly via a deep link â€” RootFlow listens for the resulting
+  /// AuthChangeEvent.passwordRecovery and routes to the "Set New
+  /// Password" screen automatically.
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'gamevault://reset-callback/',
+      );
+    } on AuthException catch (e) {
+      throw AuthServiceException(e.message);
+    } catch (e) {
+      throw AuthServiceException('Could not send reset email: $e');
     }
   }
 
