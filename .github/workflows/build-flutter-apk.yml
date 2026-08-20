@@ -24,6 +24,17 @@ jobs:
           sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
 
+      - name: Configure deep link for password reset
+        run: |
+          sed -i '/<\/activity>/i\
+              <intent-filter>\
+                  <action android:name="android.intent.action.VIEW" />\
+                  <category android:name="android.intent.category.DEFAULT" />\
+                  <category android:name="android.intent.category.BROWSABLE" />\
+                  <data android:scheme="gamevault" android:host="reset-callback" />\
+              </intent-filter>' android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
+
       - name: Install dependencies
         run: flutter pub get
 
