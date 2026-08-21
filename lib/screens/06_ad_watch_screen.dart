@@ -50,6 +50,7 @@ class _AdWatchScreenState extends State<AdWatchScreen>
   }
 
   Future<void> _playAd() async {
+    final startTime = DateTime.now();
     final result = await AdsService.instance.showRewardedAd();
     if (!mounted) return;
 
@@ -58,8 +59,13 @@ class _AdWatchScreenState extends State<AdWatchScreen>
       return;
     }
 
+    final durationMs = DateTime.now().difference(startTime).inMilliseconds;
+
     try {
-      final info = await GameDataService.instance.recordAdWatch(gameId: widget.gameId);
+      final info = await GameDataService.instance.recordAdWatch(
+        gameId: widget.gameId,
+        adDurationMs: durationMs,
+      );
       if (!mounted) return;
       final cycleCompleted = info['cycle_completed'] == true;
       final earned = (info['earned'] as num?)?.toDouble() ?? 0;
@@ -67,13 +73,50 @@ class _AdWatchScreenState extends State<AdWatchScreen>
       // normal progress tick.
       cycleCompleted ? HapticFeedback.mediumImpact() : HapticFeedback.lightImpact();
       cycleCompleted ? SoundService.instance.playCoin() : SoundService.instance.playAdWatch();
+
+      // First-strike anti-bot warning: the ad still counted (grace
+      // period), but the user needs to see this before moving on.
+      if (info['warning'] == true) {
+        await _showSuspiciousActivityWarning();
+      }
+
+      if (!mounted) return;
       widget.onAdComplete(cycleCompleted, earned);
     } on GameDataException catch (e) {
       if (!mounted) return;
-      // Ad played, but logging failed (e.g. RLS/schema issue) Ã¢â‚¬â€ show
-      // the real error instead of silently pretending it worked.
+      // Ad played, but logging failed Ã¢â‚¬â€ or the anti-bot system
+      // rejected/banned this account. Either way, show the real
+      // message instead of silently pretending it worked.
       setState(() => _errorMessage = e.message);
     }
+  }
+
+  Future<void> _showSuspiciousActivityWarning() {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.secondaryOrange),
+            const SizedBox(width: 10),
+            Expanded(child: Text('Suspicious Activity Detected', style: AppText.body(size: 16, weight: FontWeight.w700))),
+          ],
+        ),
+        content: Text(
+          'Further violations may permanently ban your account.',
+          style: AppText.body(size: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('I Understand', style: AppText.body(color: AppColors.primaryPurple, weight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
