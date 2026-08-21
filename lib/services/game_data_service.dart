@@ -11,7 +11,7 @@ class GameDataException implements Exception {
 /// Real data layer for Supabase-backed app state.
 ///
 /// FIX: ad_watches' real timestamp column is `watched_at`, not
-/// `created_at` (confirmed against the live schema) â€” every query
+/// `created_at` (confirmed against the live schema) Ã¢â‚¬â€ every query
 /// that used to reference `created_at` on this table now uses
 /// `watched_at`, and every insert now sets it explicitly so a
 /// record is never missing a timestamp regardless of the column's
@@ -69,7 +69,7 @@ class GameDataService {
       if (row == null) return 0;
       return int.tryParse(row['value']?.toString() ?? '0') ?? 0;
     } catch (e) {
-      return 0; // unlimited if unreadable â€” never blocks users on error
+      return 0; // unlimited if unreadable Ã¢â‚¬â€ never blocks users on error
     }
   }
 
@@ -126,79 +126,71 @@ class GameDataService {
   }
 
   /// Call this when an ad finishes successfully. Logs the watch,
-  /// increments the game's running ad count, and â€” matching the
-  /// reference app exactly â€” auto-credits the cycle reward the moment
+  /// increments the game's running ad count, and Ã¢â‚¬â€ matching the
+  /// reference app exactly Ã¢â‚¬â€ auto-credits the cycle reward the moment
   /// total ads watched for this game hits a multiple of the admin's
   /// configured "ads per cycle". No manual claim step: crediting is
   /// automatic and repeats every cycle for as long as the user keeps
   /// watching ads.
   ///
+  /// FIX: this used to insert ad_watches and credit currency directly
+  /// from the client, in three separate calls. Now it's a single RPC
+  /// to record_ad_watch() Ã¢â‚¬â€ a server-side function that runs the
+  /// anti-bot checks (watched-too-fast, impossible frequency, repeated
+  /// identical timing) BEFORE crediting anything. Doing this
+  /// server-side (not in this Dart method) is deliberate: a modified
+  /// client could otherwise just skip past client-side checks
+  /// entirely, since a bot is exactly the kind of client that would.
+  ///
+  /// [adDurationMs] is how long the ad actually took, measured by the
+  /// caller from when it started to when it completed.
+  ///
   /// Returns info the UI can use for a toast/message: whether this ad
-  /// completed a cycle, how much was earned, and (if not) how many
-  /// ads remain in the current cycle.
-  Future<Map<String, dynamic>> recordAdWatch({required String gameId}) async {
+  /// completed a cycle, how much was earned, and whether a first-strike
+  /// warning should be shown (the credit still goes through on a first
+  /// strike Ã¢â‚¬â€ see the SQL function for the two-strike policy).
+  Future<Map<String, dynamic>> recordAdWatch({
+    required String gameId,
+    required int adDurationMs,
+  }) async {
     final uid = _uid;
     if (uid == null) throw GameDataException('Not logged in.');
 
     try {
-      await supabase.from('ad_watches').insert({
-        'user_id': uid,
-        'game_id': gameId,
-        'watched_at': DateTime.now().toIso8601String(),
+      final result = await supabase.rpc('record_ad_watch', params: {
+        'p_game_id': gameId,
+        'p_ad_duration_ms': adDurationMs,
       });
 
-      final balRow = await supabase
-          .from('user_game_balances')
-          .select('balance, total_ads_watched')
-          .eq('user_id', uid)
-          .eq('game_id', gameId)
-          .maybeSingle();
+      final data = Map<String, dynamic>.from(result as Map);
 
-      final currentAds = (balRow?['total_ads_watched'] as num?)?.toInt() ?? 0;
-      final currentBalance = (balRow?['balance'] as num?)?.toDouble() ?? 0;
-      final newAds = currentAds + 1;
-
-      final config = await getCycleConfig(gameId);
-      double newBalance = currentBalance;
-      double earned = 0;
-      bool cycleCompleted = false;
-      int adsLeftInCycle = 0;
-
-      if (config != null) {
-        final adsPerCycle = (config['ads_required'] as num?)?.toInt() ?? 0;
-        final currencyPerCycle = (config['currency_given'] as num?)?.toDouble() ?? 0;
-        if (adsPerCycle > 0) {
-          if (newAds % adsPerCycle == 0) {
-            earned = currencyPerCycle;
-            newBalance += earned;
-            cycleCompleted = true;
-          } else {
-            adsLeftInCycle = adsPerCycle - (newAds % adsPerCycle);
-          }
+      if (data['success'] != true) {
+        final error = data['error'] as String?;
+        if (error == 'banned') {
+          throw GameDataException(
+              'Your account has been banned for repeated suspicious activity.');
         }
+        if (error == 'account_banned') {
+          throw GameDataException('Your account is banned.');
+        }
+        throw GameDataException('Could not record ad watch.');
       }
 
-      // FIX: onConflict required â€” see submitCycleWithdraw for why.
-      await supabase.from('user_game_balances').upsert({
-        'user_id': uid,
-        'game_id': gameId,
-        'balance': newBalance,
-        'total_ads_watched': newAds,
-      }, onConflict: 'user_id,game_id');
-
       return {
-        'cycle_completed': cycleCompleted,
-        'earned': earned,
-        'ads_left_in_cycle': adsLeftInCycle,
-        'new_ads': newAds,
-        'new_balance': newBalance,
+        'cycle_completed': data['cycle_completed'] == true,
+        'earned': (data['earned'] as num?)?.toDouble() ?? 0,
+        'new_ads': (data['new_ads'] as num?)?.toInt() ?? 0,
+        'new_balance': (data['new_balance'] as num?)?.toDouble() ?? 0,
+        'warning': data['warning'] == true,
       };
+    } on GameDataException {
+      rethrow;
     } catch (e) {
       throw GameDataException('Could not save ad watch: $e');
     }
   }
 
-  /// The active withdraw-rate / cycle config for a game â€” one row in
+  /// The active withdraw-rate / cycle config for a game Ã¢â‚¬â€ one row in
   /// withdraw_requirements doubles as BOTH the withdraw rate AND the
   /// ad-watch cycle config (ads_required = ads per cycle,
   /// currency_given = currency per cycle, target_currency = the cap
@@ -221,7 +213,7 @@ class GameDataService {
 
   /// Generates the full cumulative milestone schedule from a cycle
   /// config: cycle 1 = adsPerCycle ads / currencyPerCycle currency,
-  /// cycle 2 = 2Ã—/2Ã—, and so on â€” capped at `target` on the final row.
+  /// cycle 2 = 2Ãƒâ€”/2Ãƒâ€”, and so on Ã¢â‚¬â€ capped at `target` on the final row.
   List<Map<String, num>> calcSchedule(int adsPerCycle, double currencyPerCycle, double target) {
     final rows = <Map<String, num>>[];
     if (adsPerCycle <= 0 || currencyPerCycle <= 0 || target <= 0) return rows;
@@ -294,7 +286,7 @@ class GameDataService {
         'cycles_done': completed.length,
         'total_cycles': schedule.length,
         'next_row': nextRow,
-        // Eligibility to WITHDRAW is just "do you have any balance" â€”
+        // Eligibility to WITHDRAW is just "do you have any balance" Ã¢â‚¬â€
         // ad-watch progress (the schedule above) is a separate,
         // purely informational lifetime tracker. It used to gate
         // withdrawals too, back when a withdrawal reset the whole
@@ -312,7 +304,7 @@ class GameDataService {
   /// - balance is reduced by exactly the withdrawn amount (a partial
   ///   withdrawal keeps the remainder)
   /// - the ad-watch cycle ALWAYS resets to zero on any withdrawal,
-  ///   regardless of the amount â€” so the user starts back at cycle #1
+  ///   regardless of the amount Ã¢â‚¬â€ so the user starts back at cycle #1
   ///   and has to watch ads again to earn more, even if they only
   ///   withdrew part of their balance.
   Future<void> submitCycleWithdraw({
@@ -355,7 +347,7 @@ class GameDataService {
 
       // Balance: only the withdrawn amount is deducted (partial
       // withdrawals keep the rest). Ad cycle: always resets to 0, so
-      // the next reward requires watching ads again from cycle #1 â€”
+      // the next reward requires watching ads again from cycle #1 Ã¢â‚¬â€
       // this happens on every withdrawal, not just full ones.
       await supabase.from('user_game_balances').upsert({
         'user_id': uid,
@@ -426,7 +418,7 @@ class GameDataService {
     }
   }
 
-  /// Marks every unread notification as read â€” call this once the
+  /// Marks every unread notification as read Ã¢â‚¬â€ call this once the
   /// user has actually opened the Notifications screen.
   Future<void> markAllNotificationsRead() async {
     final uid = _uid;
@@ -434,12 +426,12 @@ class GameDataService {
     try {
       await supabase.from('notifications').update({'is_read': true}).eq('user_id', uid).eq('is_read', false);
     } catch (_) {
-      // Non-critical â€” the list will just show them as unread a bit
+      // Non-critical Ã¢â‚¬â€ the list will just show them as unread a bit
       // longer if this fails.
     }
   }
 
-  /// How many notifications are currently unread â€” drives the bell
+  /// How many notifications are currently unread Ã¢â‚¬â€ drives the bell
   /// badge on Home.
   Future<int> getUnreadNotificationCount() async {
     final uid = _uid;
@@ -452,7 +444,7 @@ class GameDataService {
     }
   }
 
-  /// The most recent unread payout notification (approved/rejected) â€”
+  /// The most recent unread payout notification (approved/rejected) Ã¢â‚¬â€
   /// used to trigger the auto-dismissing popup banner. Does NOT mark
   /// it read; it stays unread (and in the bell) until the user opens
   /// Notifications, matching how a normal notification inbox works.
@@ -479,7 +471,7 @@ class GameDataService {
   }
 
   /// FIX: referrals' real reward column is `reward_paid`, not
-  /// `reward_amount` â€” the old code silently read a nonexistent
+  /// `reward_amount` Ã¢â‚¬â€ the old code silently read a nonexistent
   /// field and always summed to 0.
   Future<Map<String, dynamic>> getReferralStats() async {
     final uid = _uid;
@@ -550,7 +542,7 @@ class GameDataService {
   }
 
   /// One balance row per active game, each carrying that game's own
-  /// currency name/icon â€” this is what "Total Balance" gets replaced
+  /// currency name/icon Ã¢â‚¬â€ this is what "Total Balance" gets replaced
   /// with everywhere: a per-currency breakdown instead of one number
   /// that mixed unrelated in-game currencies together.
   Future<List<Map<String, dynamic>>> getAllGameBalances() async {
@@ -587,7 +579,7 @@ class GameDataService {
   /// True only if the admin has at least one ACTIVE referral config
   /// with a reward greater than zero. Used to hide the Referral tab
   /// and any referral entry points app-wide when there's genuinely
-  /// nothing to earn â€” fails closed (hides) if the check itself
+  /// nothing to earn Ã¢â‚¬â€ fails closed (hides) if the check itself
   /// errors, since showing a broken/empty referral program is worse
   /// than not showing one.
   Future<bool> hasActiveReferralReward() async {
