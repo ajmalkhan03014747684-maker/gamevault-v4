@@ -24,6 +24,10 @@ jobs:
           sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
 
+      - name: Fix app label capitalization
+        run: |
+          sed -i 's/android:label="gamevault"/android:label="Gamevault"/' android/app/src/main/AndroidManifest.xml
+
       - name: Configure deep link for password reset
         run: |
           sed -i '/<\/activity>/i\
