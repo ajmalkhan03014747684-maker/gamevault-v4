@@ -39,6 +39,37 @@ jobs:
               </intent-filter>' android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
 
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/gamevault-release.jks
+
+      - name: Configure release signing
+        run: |
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=gamevault
+          storeFile=gamevault-release.jks
+          EOF
+
+          sed -i '/^android {/a\
+              def keystorePropertiesFile = rootProject.file("key.properties")\
+              def keystoreProperties = new Properties()\
+              if (keystorePropertiesFile.exists()) {\
+                  keystoreProperties.load(new FileInputStream(keystorePropertiesFile))\
+              }\
+              signingConfigs {\
+                  release {\
+                      keyAlias keystoreProperties["keyAlias"]\
+                      keyPassword keystoreProperties["keyPassword"]\
+                      storeFile file(keystoreProperties["storeFile"])\
+                      storePassword keystoreProperties["storePassword"]\
+                  }\
+              }' android/app/build.gradle
+
+          sed -i 's/signingConfig signingConfigs.debug/signingConfig signingConfigs.release/' android/app/build.gradle
+          cat android/app/build.gradle
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -53,3 +84,14 @@ jobs:
         with:
           name: gamevault-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish public download release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Game Vault â€” Latest Build"
+          body: "Automatically updated with every successful build. This is the file to link from your website's download button."
+          files: build/app/outputs/flutter-apk/app-release.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
