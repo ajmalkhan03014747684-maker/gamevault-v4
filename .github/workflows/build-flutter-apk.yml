@@ -19,7 +19,7 @@ jobs:
           channel: 'stable'
 
       - name: Generate missing platform files (android/ios)
-        run: flutter create --platforms=android --project-name gamevault .
+        run: flutter create --platforms=android --project-name gamevault --org com.ajatpns .
 
       - name: Ensure INTERNET permission for release builds
         run: |
