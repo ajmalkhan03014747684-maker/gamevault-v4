@@ -3,24 +3,33 @@
 /// THIS IS THE ONLY FILE YOU NEED TO TOUCH WHEN REAL HUAWEI ADS KIT
 /// CREDENTIALS ARE READY.
 ///
-/// Steps for that day:
-/// 1. Set [useRealAds] to true
-/// 2. Replace the placeholder IDs below with your real ones from
-///    AppGallery Connect
-/// 3. That's it — every screen already talks to AdsService, not to
-///    these values directly, so nothing else needs to change.
+/// Current state: wired to the real Huawei Ads Kit SDK, but pointed at
+/// Huawei's official PUBLIC TEST ad slot ID. Test ads are unlimited,
+/// free, and safe to click — they never pay out and never risk your
+/// account. This lets us verify the whole load/show/reward flow works
+/// end-to-end before Petal Ads Publisher Service issues real IDs.
+///
+/// Steps for the day real ad unit IDs exist (after AppGallery
+/// publishing + Petal Ads Publisher Service approval):
+/// 1. Replace [rewardedAdUnitId] below with your real slot ID from
+///    Petal Publisher Center.
+/// 2. That's it — every screen already talks to AdsService, not to
+///    this value directly, so nothing else needs to change.
 class AdsConfig {
   AdsConfig._();
 
-  /// Master switch. false = simulated ads (current state).
-  /// true = real Huawei Ads Kit (once wired + credentials are set below).
-  static const bool useRealAds = false;
-
-  /// Your Huawei AppGallery Connect App ID.
-  static const String appId = 'YOUR_HUAWEI_APP_ID_HERE';
+  /// Master switch. false = simulated ads (in-app fake timer, no SDK).
+  /// true = real Huawei Ads Kit SDK calls (currently using Huawei's
+  /// public test slot ID below — safe to leave true during development).
+  static const bool useRealAds = true;
 
   /// Rewarded ad slot ID for the main "Watch Rewarded Ad" flow.
-  static const String rewardedAdUnitId = 'YOUR_REWARDED_AD_UNIT_ID_HERE';
+  ///
+  /// This is Huawei's official public test slot ID for rewarded video
+  /// ads (documented at developer.huawei.com and safe to ship during
+  /// testing). Replace with your real slot ID once Petal Ads
+  /// Publisher Service approves the app post-publishing.
+  static const String rewardedAdUnitId = 'testx9dtjwj8hp';
 
   /// How long the simulated ad "plays" for, in seconds.
   /// Irrelevant once useRealAds is true.
