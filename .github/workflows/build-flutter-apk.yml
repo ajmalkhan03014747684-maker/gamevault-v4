@@ -21,6 +21,20 @@ jobs:
       - name: Generate missing platform files (android/ios)
         run: flutter create --platforms=android --project-name gamevault --org com.ajatpns .
 
+      - name: Install Huawei AGConnect config file
+        run: cp agconnect-services.json android/app/agconnect-services.json
+
+      - name: Add Huawei Maven repo and AGConnect plugin classpath
+        run: |
+          sed -i '/repositories {/a\        maven { url "https://developer.huawei.com/repo/" }' android/build.gradle
+          sed -i '/dependencies {/a\        classpath "com.huawei.agconnect:agcp:1.9.1.301"' android/build.gradle
+          cat android/build.gradle
+
+      - name: Apply AGConnect plugin to app module
+        run: |
+          echo "apply plugin: 'com.huawei.agconnect'" >> android/app/build.gradle
+          cat android/app/build.gradle
+
       - name: Ensure INTERNET permission for release builds
         run: |
           sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
