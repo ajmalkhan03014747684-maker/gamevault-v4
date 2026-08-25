@@ -27,18 +27,19 @@ jobs:
       - name: Add Huawei Maven repo and AGConnect classpath to root build.gradle
         run: |
           sed -i '/repositories {/a\        maven { url "https://developer.huawei.com/repo/" }' android/build.gradle
-          sed -i '1i\
-buildscript {\
-    repositories {\
-        google()\
-        mavenCentral()\
-        maven { url "https://developer.huawei.com/repo/" }\
-    }\
-    dependencies {\
-        classpath "com.huawei.agconnect:agcp:1.9.1.300"\
-    }\
-}
-' android/build.gradle
+          printf '%s\n' \
+            'buildscript {' \
+            '    repositories {' \
+            '        google()' \
+            '        mavenCentral()' \
+            '        maven { url "https://developer.huawei.com/repo/" }' \
+            '    }' \
+            '    dependencies {' \
+            '        classpath "com.huawei.agconnect:agcp:1.9.1.300"' \
+            '    }' \
+            '}' > /tmp/buildscript_block.gradle
+          cat /tmp/buildscript_block.gradle android/build.gradle > /tmp/combined_build.gradle
+          mv /tmp/combined_build.gradle android/build.gradle
           cat android/build.gradle
 
       - name: Apply AGConnect plugin to app module
