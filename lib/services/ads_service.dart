@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:huawei_ads/hms_ads_lib.dart';
+import 'package:huawei_ads/huawei_ads.dart';
 import 'ads_config.dart';
 
 enum AdLoadState { notLoaded, loading, ready, unavailable }
@@ -29,8 +29,8 @@ class AdsService {
       await HwAds.init();
     } catch (_) {
       // If HMS Core isn't available on this device (non-Huawei phone),
-      // ad calls below will simply fail to load; we handle that
-      // gracefully in preloadRewardedAd().
+      // ad calls below will simply fail to load; handled gracefully
+      // in preloadRewardedAd() via the loadAd() return value.
     }
   }
 
@@ -48,52 +48,40 @@ class AdsService {
       return;
     }
 
-    final completer = Completer<void>();
     _userEarnedReward = false;
 
     _rewardAd = RewardAd(
-      listener: (RewardAdEvent event, {Reward? reward, int? errorCode}) {
-        switch (event) {
-          case RewardAdEvent.loaded:
-            _state = AdLoadState.ready;
-            if (!completer.isCompleted) completer.complete();
-            break;
-          case RewardAdEvent.failed:
-            _state = AdLoadState.unavailable;
-            if (!completer.isCompleted) completer.complete();
-            if (_showCompleter != null && !_showCompleter!.isCompleted) {
-              _showCompleter!.complete(AdResult.failed);
-            }
-            break;
-          case RewardAdEvent.rewarded:
-            // Only mark earned here — never grant the reward from a
-            // click/open/show event, only from this genuine callback.
-            _userEarnedReward = true;
-            break;
-          case RewardAdEvent.closed:
-            if (_showCompleter != null && !_showCompleter!.isCompleted) {
-              _showCompleter!.complete(
-                _userEarnedReward ? AdResult.completed : AdResult.cancelled,
-              );
-            }
-            break;
-          default:
-            break;
+      listener: (RewardAdEvent? event, {int? errorCode, Reward? reward}) {
+        if (event == RewardAdEvent.rewarded) {
+          // Only mark earned here — never grant the reward from a
+          // click/open event, only from this genuine callback.
+          _userEarnedReward = true;
+        } else if (event == RewardAdEvent.closed) {
+          if (_showCompleter != null && !_showCompleter!.isCompleted) {
+            _showCompleter!.complete(
+              _userEarnedReward ? AdResult.completed : AdResult.cancelled,
+            );
+          }
+        } else if (event == RewardAdEvent.failedToLoad) {
+          _state = AdLoadState.unavailable;
+          if (_showCompleter != null && !_showCompleter!.isCompleted) {
+            _showCompleter!.complete(AdResult.failed);
+          }
         }
       },
     );
 
     try {
-      await _rewardAd!.loadAd(
+      // loadAd() itself returns whether the load succeeded — more
+      // reliable than waiting on a listener event for this part.
+      final loaded = await _rewardAd!.loadAd(
         adSlotId: AdsConfig.rewardedAdUnitId,
         adParam: AdParam(),
       );
+      _state = (loaded == true) ? AdLoadState.ready : AdLoadState.unavailable;
     } catch (_) {
       _state = AdLoadState.unavailable;
-      if (!completer.isCompleted) completer.complete();
     }
-
-    await completer.future;
   }
 
   bool get isAdReady => _state == AdLoadState.ready;
@@ -128,7 +116,7 @@ class AdsService {
     }
 
     final result = await _showCompleter!.future;
-    _rewardAd?.destroy();
+    await _rewardAd?.destroy();
     _rewardAd = null;
     return result;
   }
