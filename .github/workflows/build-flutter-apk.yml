@@ -24,16 +24,22 @@ jobs:
       - name: Install Huawei AGConnect config file
         run: cp agconnect-services.json android/app/agconnect-services.json
 
-      - name: Add Huawei Maven repo to root build.gradle
+      - name: Add Huawei Maven repo and AGConnect classpath to root build.gradle
         run: |
           sed -i '/repositories {/a\        maven { url "https://developer.huawei.com/repo/" }' android/build.gradle
+          sed -i '1i\
+buildscript {\
+    repositories {\
+        google()\
+        mavenCentral()\
+        maven { url "https://developer.huawei.com/repo/" }\
+    }\
+    dependencies {\
+        classpath "com.huawei.agconnect:agcp:1.9.1.300"\
+    }\
+}
+' android/build.gradle
           cat android/build.gradle
-
-      - name: Register AGConnect plugin in settings.gradle
-        run: |
-          sed -i '/repositories {/a\        maven { url "https://developer.huawei.com/repo/" }' android/settings.gradle
-          sed -i '/^plugins {/a\    id "com.huawei.agconnect" version "1.9.1.301" apply false' android/settings.gradle
-          cat android/settings.gradle
 
       - name: Apply AGConnect plugin to app module
         run: |
