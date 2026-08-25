@@ -32,7 +32,7 @@ jobs:
       - name: Register AGConnect plugin in settings.gradle
         run: |
           sed -i '/repositories {/a\        maven { url "https://developer.huawei.com/repo/" }' android/settings.gradle
-          sed -i '/^plugins {/a\    id "com.huawei.agconnect" version "1.9.1.300" apply false' android/settings.gradle
+          sed -i '/^plugins {/a\    id "com.huawei.agconnect" version "1.9.1.301" apply false' android/settings.gradle
           cat android/settings.gradle
 
       - name: Apply AGConnect plugin to app module
