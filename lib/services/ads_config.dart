@@ -23,6 +23,11 @@ class AdsConfig {
   /// public test slot ID below — safe to leave true during development).
   static const bool useRealAds = true;
 
+  /// AppGallery Connect App ID for this app (from agconnect-services.json).
+  /// Shown for reference in the admin panel only — not used by the SDK
+  /// directly (the SDK reads agconnect-services.json itself).
+  static const String appId = '118739351';
+
   /// Rewarded ad slot ID for the main "Watch Rewarded Ad" flow.
   ///
   /// This is Huawei's official public test slot ID for rewarded video
