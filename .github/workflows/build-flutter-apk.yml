@@ -50,6 +50,23 @@ jobs:
           echo "apply plugin: 'com.huawei.agconnect'" >> android/app/build.gradle
           cat android/app/build.gradle
 
+      - name: Add Huawei HMS ProGuard/R8 keep rules
+        run: |
+          mkdir -p android/app
+          touch android/app/proguard-rules.pro
+          cat >> android/app/proguard-rules.pro << 'RULES'
+
+          # Huawei HMS Core defensively references a handful of optional
+          # classes (analytics, network acceleration, SSL libraries) that
+          # are not bundled dependencies. These are not real errors, so
+          # R8 is told to ignore them rather than fail the build.
+          -dontwarn com.huawei.hianalytics.**
+          -dontwarn com.huawei.hms.**
+          -dontwarn org.chromium.net.**
+          -dontwarn org.conscrypt.**
+          RULES
+          cat android/app/proguard-rules.pro
+
       - name: Ensure INTERNET permission for release builds
         run: |
           sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
