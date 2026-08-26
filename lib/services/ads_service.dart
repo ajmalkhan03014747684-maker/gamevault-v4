@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:huawei_ads/huawei_ads.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'ads_config.dart';
 
 enum AdLoadState { notLoaded, loading, ready, unavailable }
@@ -7,7 +7,7 @@ enum AdLoadState { notLoaded, loading, ready, unavailable }
 enum AdResult { completed, failed, cancelled }
 
 /// Single point of contact for anything ad-related. Screens call these
-/// methods and never touch the Huawei SDK directly — this is what
+/// methods and never touch the AdMob SDK directly — this is what
 /// makes swapping test IDs for real ones later a one-file change
 /// (see ads_config.dart) instead of a rewrite across every screen.
 class AdsService {
@@ -17,8 +17,7 @@ class AdsService {
   AdLoadState _state = AdLoadState.notLoaded;
   AdLoadState get state => _state;
 
-  RewardAd? _rewardAd;
-  Completer<AdResult>? _showCompleter;
+  RewardedAd? _rewardedAd;
   bool _userEarnedReward = false;
 
   /// Call this once at app startup (see main.dart) before any ad is
@@ -26,18 +25,16 @@ class AdsService {
   Future<void> init() async {
     if (!AdsConfig.useRealAds) return;
     try {
-      await HwAds.init();
+      await MobileAds.instance.initialize();
     } catch (_) {
-      // If HMS Core isn't available on this device (non-Huawei phone),
-      // ad calls below will simply fail to load; handled gracefully
-      // in preloadRewardedAd() via the loadAd() return value.
+      // If init fails for any reason, ad calls below will simply fail
+      // to load; handled gracefully in preloadRewardedAd().
     }
   }
 
   /// Call this when a screen that might show an ad first opens (e.g.
   /// Game Details). Determines whether the "WATCH REWARDED AD" button
-  /// should even be shown, per Huawei's policy requirement that no
-  /// button/message appears if no ad is available.
+  /// should even be shown.
   Future<void> preloadRewardedAd() async {
     _state = AdLoadState.loading;
 
@@ -48,51 +45,36 @@ class AdsService {
       return;
     }
 
-    _userEarnedReward = false;
+    final completer = Completer<void>();
 
-    _rewardAd = RewardAd(
-      listener: (RewardAdEvent? event, {int? errorCode, Reward? reward}) {
-        if (event == RewardAdEvent.rewarded) {
-          // Only mark earned here — never grant the reward from a
-          // click/open event, only from this genuine callback.
-          _userEarnedReward = true;
-        } else if (event == RewardAdEvent.closed) {
-          if (_showCompleter != null && !_showCompleter!.isCompleted) {
-            _showCompleter!.complete(
-              _userEarnedReward ? AdResult.completed : AdResult.cancelled,
-            );
-          }
-        } else if (event == RewardAdEvent.failedToLoad) {
+    RewardedAd.load(
+      adUnitId: AdsConfig.rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (RewardedAd ad) {
+          _rewardedAd = ad;
+          _state = AdLoadState.ready;
+          if (!completer.isCompleted) completer.complete();
+        },
+        onAdFailedToLoad: (LoadAdError error) {
+          _rewardedAd = null;
           _state = AdLoadState.unavailable;
-          if (_showCompleter != null && !_showCompleter!.isCompleted) {
-            _showCompleter!.complete(AdResult.failed);
-          }
-        }
-      },
+          if (!completer.isCompleted) completer.complete();
+        },
+      ),
     );
 
-    try {
-      // loadAd() itself returns whether the load succeeded — more
-      // reliable than waiting on a listener event for this part.
-      final loaded = await _rewardAd!.loadAd(
-        adSlotId: AdsConfig.rewardedAdUnitId,
-        adParam: AdParam(),
-      );
-      _state = (loaded == true) ? AdLoadState.ready : AdLoadState.unavailable;
-    } catch (_) {
-      _state = AdLoadState.unavailable;
-    }
+    await completer.future;
   }
 
   bool get isAdReady => _state == AdLoadState.ready;
 
   /// Shows the ad. Only ever call this after the user has explicitly
-  /// confirmed via the pre-ad disclosure dialog (Huawei policy
-  /// requirement — reward amount must be disclosed before the ad
-  /// starts). Returns the real outcome; the caller must only grant a
-  /// reward on AdResult.completed.
+  /// confirmed via the pre-ad disclosure dialog (reward amount must
+  /// be disclosed before the ad starts). Returns the real outcome;
+  /// the caller must only grant a reward on AdResult.completed.
   Future<AdResult> showRewardedAd() async {
-    if (_state != AdLoadState.ready) {
+    if (_state != AdLoadState.ready || _rewardedAd == null) {
       return AdResult.failed;
     }
 
@@ -106,18 +88,42 @@ class AdsService {
       return AdResult.completed;
     }
 
-    _showCompleter = Completer<AdResult>();
+    final ad = _rewardedAd!;
+    _rewardedAd = null;
+    _userEarnedReward = false;
+    final showCompleter = Completer<AdResult>();
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        if (!showCompleter.isCompleted) {
+          showCompleter.complete(
+            _userEarnedReward ? AdResult.completed : AdResult.cancelled,
+          );
+        }
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        if (!showCompleter.isCompleted) {
+          showCompleter.complete(AdResult.failed);
+        }
+      },
+    );
+
     try {
-      await _rewardAd!.show();
+      await ad.show(
+        onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+          // Only mark earned here — never grant the reward from a
+          // click/open/show event, only from this genuine callback.
+          _userEarnedReward = true;
+        },
+      );
     } catch (_) {
-      if (!_showCompleter!.isCompleted) {
-        _showCompleter!.complete(AdResult.failed);
+      if (!showCompleter.isCompleted) {
+        showCompleter.complete(AdResult.failed);
       }
     }
 
-    final result = await _showCompleter!.future;
-    await _rewardAd?.destroy();
-    _rewardAd = null;
-    return result;
+    return showCompleter.future;
   }
 }
