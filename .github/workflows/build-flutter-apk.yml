@@ -21,6 +21,11 @@ jobs:
       - name: Generate missing platform files (android/ios)
         run: flutter create --platforms=android --project-name gamevault --org com.ajatpns .
 
+      - name: Bump Android Gradle Plugin to 8.1.1 (required by androidx.webkit)
+        run: |
+          sed -i 's/"com.android.application" version "8.1.0"/"com.android.application" version "8.1.1"/' android/settings.gradle
+          cat android/settings.gradle
+
       - name: Install Google Mobile Ads (AdMob) App ID into manifest
         run: |
           sed -i '/android:icon="@mipmap\/ic_launcher">/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' android/app/src/main/AndroidManifest.xml
