@@ -21,51 +21,10 @@ jobs:
       - name: Generate missing platform files (android/ios)
         run: flutter create --platforms=android --project-name gamevault --org com.ajatpns .
 
-      - name: Install Huawei AGConnect config file
-        run: cp agconnect-services.json android/app/agconnect-services.json
-
-      - name: Add Huawei Maven repo and AGConnect classpath to root build.gradle
+      - name: Install Google Mobile Ads (AdMob) App ID into manifest
         run: |
-          sed -i '/repositories {/a\        maven { url "https://developer.huawei.com/repo/" }' android/build.gradle
-          AGP_VERSION=$(grep -oE '"com\.android\.application" version "[0-9.]+"' android/settings.gradle | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          echo "Detected AGP version: $AGP_VERSION"
-          printf '%s\n' \
-            'buildscript {' \
-            '    repositories {' \
-            '        google()' \
-            '        mavenCentral()' \
-            '        maven { url "https://developer.huawei.com/repo/" }' \
-            '    }' \
-            '    dependencies {' \
-            "        classpath 'com.android.tools.build:gradle:${AGP_VERSION}'" \
-            '        classpath "com.huawei.agconnect:agcp:1.9.1.300"' \
-            '    }' \
-            '}' > /tmp/buildscript_block.gradle
-          cat /tmp/buildscript_block.gradle android/build.gradle > /tmp/combined_build.gradle
-          mv /tmp/combined_build.gradle android/build.gradle
-          cat android/build.gradle
-
-      - name: Apply AGConnect plugin to app module
-        run: |
-          echo "apply plugin: 'com.huawei.agconnect'" >> android/app/build.gradle
-          cat android/app/build.gradle
-
-      - name: Add Huawei HMS ProGuard/R8 keep rules
-        run: |
-          mkdir -p android/app
-          touch android/app/proguard-rules.pro
-          cat >> android/app/proguard-rules.pro << 'RULES'
-
-          # Huawei HMS Core defensively references a handful of optional
-          # classes (analytics, network acceleration, SSL libraries) that
-          # are not bundled dependencies. These are not real errors, so
-          # R8 is told to ignore them rather than fail the build.
-          -dontwarn com.huawei.hianalytics.**
-          -dontwarn com.huawei.hms.**
-          -dontwarn org.chromium.net.**
-          -dontwarn org.conscrypt.**
-          RULES
-          cat android/app/proguard-rules.pro
+          sed -i '/android:icon="@mipmap\/ic_launcher">/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' android/app/src/main/AndroidManifest.xml
+          cat android/app/src/main/AndroidManifest.xml
 
       - name: Ensure INTERNET permission for release builds
         run: |
