@@ -31,6 +31,12 @@ jobs:
           sed -i '/android:icon="@mipmap\/ic_launcher">/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
 
+      - name: Bump minSdkVersion to 23 (required by google_mobile_ads)
+        run: |
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' android/app/build.gradle
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/' android/app/build.gradle
+          cat android/app/build.gradle
+
       - name: Ensure INTERNET permission for release builds
         run: |
           sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET" />' android/app/src/main/AndroidManifest.xml
