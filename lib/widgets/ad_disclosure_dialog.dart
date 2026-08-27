@@ -55,22 +55,39 @@ Future<bool> showAdDisclosureDialog(
 /// currently available — per Huawei policy, no button/message should
 /// invite a tap when there's nothing to show.
 class NoAdAvailableNotice extends StatelessWidget {
-  const NoAdAvailableNotice({super.key});
+  final String? debugDetail;
+  const NoAdAvailableNotice({super.key, this.debugDetail});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 52,
+      padding: const EdgeInsets.symmetric(vertical: 10),
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: AppColors.surface2.withOpacity(0.5),
         borderRadius: BorderRadius.circular(AppRadius.button),
         border: Border.all(color: AppColors.glassBorder),
       ),
-      child: Text(
-        'No ads available right now — check back soon',
-        style: AppText.caption(size: 13),
-        textAlign: TextAlign.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'No ads available right now — check back soon',
+            style: AppText.caption(size: 13),
+            textAlign: TextAlign.center,
+          ),
+          if (debugDetail != null) ...[
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                debugDetail!,
+                style: AppText.caption(size: 10, color: AppColors.dangerRed),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
