@@ -20,6 +20,12 @@ class AdsService {
   RewardedAd? _rewardedAd;
   bool _userEarnedReward = false;
 
+  /// TEMPORARY DIAGNOSTIC FIELD — captures the real reason the last ad
+  /// load failed (AdMob error code/domain/message), so it can be shown
+  /// in the UI instead of a generic "no ads available" message. Safe
+  /// to remove once ads are confirmed working reliably.
+  String? lastLoadError;
+
   /// Call this once at app startup (see main.dart) before any ad is
   /// requested.
   Future<void> init() async {
@@ -59,6 +65,7 @@ class AdsService {
         onAdFailedToLoad: (LoadAdError error) {
           _rewardedAd = null;
           _state = AdLoadState.unavailable;
+          lastLoadError = 'code=${error.code} domain=${error.domain} message=${error.message}';
           if (!completer.isCompleted) completer.complete();
         },
       ),
