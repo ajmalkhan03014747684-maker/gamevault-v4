@@ -269,7 +269,7 @@ class _GameDetailsScreenState extends State<GameDetailsScreen> {
                   ),
                 )
               else if (!AdsService.instance.isAdReady)
-                const NoAdAvailableNotice()
+                NoAdAvailableNotice(debugDetail: AdsService.instance.lastLoadError)
               else
                 GradientButton(
                   label: 'WATCH AD & EARN',
