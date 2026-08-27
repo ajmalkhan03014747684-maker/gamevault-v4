@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Google Mobile Ads (AdMob) App ID into manifest
         run: |
-          sed -i '/android:icon="@mipmap\/ic_launcher">/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' android/app/src/main/AndroidManifest.xml
+          sed -i '/android:icon="@mipmap\/ic_launcher">/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4745209091204946~1801167791"/>' android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
 
       - name: Bump minSdkVersion to 23 (required by google_mobile_ads)
