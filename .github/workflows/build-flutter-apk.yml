@@ -91,13 +91,13 @@ jobs:
               }' android/app/build.gradle
 
           sed -i -E 's/signingConfig(\s*=\s*|\s+)signingConfigs\.debug/signingConfig = signingConfigs.release/' android/app/build.gradle
+          echo "=== FULL build.gradle content (always shown) ==="
+          cat android/app/build.gradle
           echo "=== Verifying release signing actually points to release keystore ==="
-          grep -A2 "release {" android/app/build.gradle | grep "signingConfig"
           if ! grep -q "signingConfig = signingConfigs.release" android/app/build.gradle; then
             echo "FATAL: release buildType is NOT using signingConfigs.release — refusing to build a debug-signed APK."
             exit 1
           fi
-          cat android/app/build.gradle
 
       - name: Install dependencies
         run: flutter pub get
