@@ -13,10 +13,10 @@ class MiniGameInfo {
 
 const kMiniGames = [
   MiniGameInfo('Fast Runner', Icons.directions_run_rounded, AppColors.primaryPurple),
-  MiniGameInfo('Color Switch', Icons.palette_rounded, AppColors.successGreen),
+  MiniGameInfo('Hue Shift', Icons.palette_rounded, AppColors.successGreen),
   MiniGameInfo('Memory Match', Icons.grid_view_rounded, AppColors.secondaryOrange),
   MiniGameInfo('Bubble Pop', Icons.bubble_chart_rounded, AppColors.gold),
-  MiniGameInfo('Knife Hit', Icons.gps_fixed_rounded, AppColors.dangerRed),
+  MiniGameInfo('Target Toss', Icons.gps_fixed_rounded, AppColors.dangerRed),
   MiniGameInfo('Space Dodge', Icons.rocket_launch_rounded, AppColors.primaryPurple),
 ];
 
