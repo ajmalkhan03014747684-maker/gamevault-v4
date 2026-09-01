@@ -152,5 +152,4 @@ class SoundService {
   Future<void> playApproved() => _playSfx('approved.ogg');
   Future<void> playRejected() => _playSfx('rejected.ogg');
   Future<void> playCooldownReady() => _playSfx('cooldown_ready.ogg');
-  Future<void> playMissionClaim() => _playSfx('mission_claim.ogg');
 }
