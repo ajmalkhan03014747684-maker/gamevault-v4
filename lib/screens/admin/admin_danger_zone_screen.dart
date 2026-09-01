@@ -127,15 +127,10 @@ class _AdminDangerZoneScreenState extends State<AdminDangerZoneScreen> {
                           () => AdminService.instance.clearAllPayouts(),
                         ),
                         _dangerButton(
-                          '🗑️ Clear Referrals',
-                          'Deletes all referral records.',
-                          () => AdminService.instance.clearAllReferrals(),
+                          '🗑️ Clear Games',
+                          'Deletes every game and its settings.',
+                          () => AdminService.instance.clearAllGames(),
                         ),
-                        
-                          
-                          
-                      
-                
                         const SizedBox(height: 8),
                         Container(height: 1, color: AppColors.dangerRed.withOpacity(0.2)),
                         const SizedBox(height: 12),
@@ -146,7 +141,7 @@ class _AdminDangerZoneScreenState extends State<AdminDangerZoneScreen> {
                                 ? null
                                 : () => _confirmAndRun(
                                       'FULL APP RESET',
-                                      'Deletes games, ad watches, balances, referrals, and payouts for every user.',
+                                      'Deletes games, ad watches, balances, and payouts for every user.',
                                       () => AdminService.instance.fullAppReset(),
                                     ),
                             style: ElevatedButton.styleFrom(
