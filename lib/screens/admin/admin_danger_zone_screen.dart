@@ -131,11 +131,11 @@ class _AdminDangerZoneScreenState extends State<AdminDangerZoneScreen> {
                           'Deletes all referral records.',
                           () => AdminService.instance.clearAllReferrals(),
                         ),
-                        _dangerButton(
-                          '🗑️ Clear Games',
-                          'Deletes every game and its settings.',
-                          () => AdminService.instance.clearAllGames(),
-                        ),
+                        
+                          
+                          
+                      
+                
                         const SizedBox(height: 8),
                         Container(height: 1, color: AppColors.dangerRed.withOpacity(0.2)),
                         const SizedBox(height: 12),
