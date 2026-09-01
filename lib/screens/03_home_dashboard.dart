@@ -15,7 +15,7 @@ import '../services/auth_service.dart';
 
 /// Represents a game loaded live from Supabase.
 ///
-/// FIX: previously had no `id` field at all Ã¢â‚¬â€ every screen downstream
+/// FIX: previously had no `id` field at all — every screen downstream
 /// (Game Details, Ad Watch, Withdraw) was using `name` as a stand-in
 /// for the database game_id. Since that column is a uuid, every
 /// threshold/balance/withdraw lookup for that game was silently
@@ -50,14 +50,12 @@ class GameInfo {
 
 const kFallbackGames = <GameInfo>[];
 
-/// Screen 3 Ã¢â‚¬â€ Home Dashboard
+/// Screen 3 — Home Dashboard
 class HomeDashboardScreen extends StatefulWidget {
   final void Function(int navIndex) onNavTap;
   final VoidCallback onSelectGameTapped;
   final VoidCallback onNotificationsTapped;
   final VoidCallback onMiniGamesTapped;
-  final VoidCallback onMissionsTapped;
-  final VoidCallback onLeaderboardTapped;
   final void Function(GameInfo game) onGameRowTapped;
 
   const HomeDashboardScreen({
@@ -66,8 +64,6 @@ class HomeDashboardScreen extends StatefulWidget {
     required this.onSelectGameTapped,
     required this.onNotificationsTapped,
     required this.onMiniGamesTapped,
-    required this.onMissionsTapped,
-    required this.onLeaderboardTapped,
     required this.onGameRowTapped,
   });
 
@@ -195,7 +191,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
                     // FIX: Total Balance card removed (a single sum
                     // across different games' currencies never meant
-                    // anything real Ã¢â‚¬â€ see Wallet for the real
+                    // anything real — see Wallet for the real
                     // per-currency breakdown). Ads Watched Today now
                     // takes the full-width card spot instead.
                     GlassCard(
@@ -256,11 +252,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     const SizedBox(height: 24),
 
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _IconAction(icon: Icons.flag_rounded, label: 'Missions', onTap: widget.onMissionsTapped),
                         _IconAction(icon: Icons.videogame_asset_rounded, label: 'Mini Games', onTap: widget.onMiniGamesTapped),
-                        _IconAction(icon: Icons.leaderboard_rounded, label: 'Leaderboard', onTap: widget.onLeaderboardTapped),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -282,7 +276,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       const EmptyState(
                         icon: Icons.sports_esports_outlined,
                         title: 'No active games yet',
-                        subtitle: 'Check back soon Ã¢â‚¬â€ new games are added regularly.',
+                        subtitle: 'Check back soon — new games are added regularly.',
                       )
                     else
                       ..._games.take(3).toList().asMap().entries.map((entry) {
