@@ -25,18 +25,13 @@ import 'screens/10_profile.dart';
 import 'screens/11_wallet.dart';
 import 'screens/12_withdraw.dart';
 import 'screens/13_withdraw_history.dart';
-import 'screens/14_referral.dart';
-import 'screens/15_leaderboard.dart';
 import 'screens/16_notifications.dart';
-import 'screens/18_missions.dart';
 import 'screens/admin/admin_gate.dart';
 import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/admin/admin_payouts_screen.dart';
 import 'screens/admin/admin_games_screen.dart';
-import 'screens/admin/admin_missions_screen.dart';
 import 'screens/admin/admin_antibot_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
-import 'screens/admin/admin_referral_configs_screen.dart';
 import 'screens/admin/admin_withdraw_req_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/security_screen.dart';
@@ -69,9 +64,9 @@ class GameVaultApp extends StatelessWidget {
 
 /// Full screen flow controller.
 ///
-/// FIX: Daily Check-in removed entirely (per product decision Ã¢â‚¬â€ the
+/// FIX: Daily Check-in removed entirely (per product decision — the
 /// feature and its admin screen are gone, not just hidden).
-/// FIX: `_availableGames` cache removed Ã¢â‚¬â€ Select Game / Games section
+/// FIX: `_availableGames` cache removed — Select Game / Games section
 /// now fetches its own live list (see 04_select_game.dart), so there's
 /// nothing to keep in sync here anymore.
 /// FIX: every place that used to pass a game's display NAME as its
@@ -99,19 +94,14 @@ enum _Step {
   wallet,
   withdraw,
   withdrawHistory,
-  referral,
-  leaderboard,
   notifications,
-  missions,
   adminDashboard,
   adminPayouts,
   adminGames,
-  adminMissions,
   adminAntiBot,
   adminUsers,
   adminSettings,
   adminDangerZone,
-  adminReferralConfigs,
   adminWithdrawReq,
   editProfile,
   security,
@@ -122,7 +112,7 @@ enum _Step {
 class _RootFlowState extends State<RootFlow> {
   _Step _step = _Step.splash;
   GameInfo? _selectedGame;
-  // Transient Ã¢â‚¬â€ filled in by Game Details with REAL per-game data
+  // Transient — filled in by Game Details with REAL per-game data
   // right before handing off to the ad flow. No fake shared counter.
   int _pendingCurrentAds = 0;
   int _pendingAdsRequired = 0;
@@ -135,7 +125,7 @@ class _RootFlowState extends State<RootFlow> {
   // Polls for a new (unread) payout_approved / payout_rejected
   // notification while the app is open, shows a banner for 10
   // seconds, then auto-dismisses. The notification itself is NOT
-  // marked read by the banner Ã¢â‚¬â€ it stays in the Notifications screen
+  // marked read by the banner — it stays in the Notifications screen
   // permanently until the user actually opens it there.
   // ---------------------------------------------------------------
   Timer? _pollTimer;
@@ -143,7 +133,7 @@ class _RootFlowState extends State<RootFlow> {
   Map<String, dynamic>? _activeBanner;
   final Set<String> _bannerShownIds = {};
 
-  // Ad-cooldown-ended detector Ã¢â‚¬â€ separate from the small display
+  // Ad-cooldown-ended detector — separate from the small display
   // badges (which just read storage independently); this one is the
   // single source that fires the one-time "ad ready" banner and
   // clears the stored deadline once it passes.
@@ -162,7 +152,7 @@ class _RootFlowState extends State<RootFlow> {
 
     _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) => _tickCooldown());
 
-    // Any CooldownBadge, anywhere in the app, pings this on tap Ã¢â‚¬â€
+    // Any CooldownBadge, anywhere in the app, pings this on tap —
     // listening once here means every screen gets a clickable badge
     // for free with zero constructor changes.
     CooldownNav.tapSignal.addListener(_onCooldownBadgeTapped);
@@ -175,7 +165,7 @@ class _RootFlowState extends State<RootFlow> {
     // Password recovery: supabase_flutter automatically detects when
     // the app was opened via the reset-password deep link (as long as
     // the Android manifest's intent-filter matches) and fires this
-    // event â€” no manual link parsing needed on our end.
+    // event — no manual link parsing needed on our end.
     _authSub = supabase.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.passwordRecovery) {
         if (!mounted) return;
@@ -209,7 +199,7 @@ class _RootFlowState extends State<RootFlow> {
     if (!mounted) return;
 
     if (end == null) {
-      // No active cooldown Ã¢â‚¬â€ reset the fired-flag so the NEXT
+      // No active cooldown — reset the fired-flag so the NEXT
       // cooldown (started by watching another ad) gets its own banner.
       _cooldownEndBannerFired = false;
       return;
@@ -226,8 +216,8 @@ class _RootFlowState extends State<RootFlow> {
     SoundService.instance.playCooldownReady();
     _showEphemeralBanner(
       type: 'cooldown_ready',
-      title: 'Ã°Å¸â€â€ Ready for your next ad!',
-      message: 'Your cooldown has ended Ã¢â‚¬â€ go watch an ad to earn more.',
+      title: '🔔 Ready for your next ad!',
+      message: 'Your cooldown has ended — go watch an ad to earn more.',
       duration: const Duration(seconds: 10),
     );
   }
@@ -274,9 +264,6 @@ class _RootFlowState extends State<RootFlow> {
         setState(() => _step = _Step.wallet);
         break;
       case 3:
-        setState(() => _step = _Step.referral);
-        break;
-      case 4:
         setState(() => _step = _Step.profile);
         break;
     }
@@ -304,7 +291,7 @@ class _RootFlowState extends State<RootFlow> {
   }
 
   /// Shows a transient top banner that auto-dismisses after [duration]
-  /// Ã¢â‚¬â€ used for both the cooldown-active tap warning and the
+  /// — used for both the cooldown-active tap warning and the
   /// cooldown-just-ended notice. Nothing here is written to the
   /// database; it only ever lives in memory for this session.
   void _showEphemeralBanner({
@@ -341,10 +328,7 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.miniGames:
       case _Step.profile:
       case _Step.wallet:
-      case _Step.referral:
-      case _Step.leaderboard:
       case _Step.notifications:
-      case _Step.missions:
         setState(() => _step = _Step.home);
         break;
       case _Step.withdraw:
@@ -353,12 +337,10 @@ class _RootFlowState extends State<RootFlow> {
         break;
       case _Step.adminPayouts:
       case _Step.adminGames:
-      case _Step.adminMissions:
       case _Step.adminAntiBot:
       case _Step.adminUsers:
       case _Step.adminSettings:
       case _Step.adminDangerZone:
-      case _Step.adminReferralConfigs:
       case _Step.adminWithdrawReq:
         setState(() => _step = _Step.adminDashboard);
         break;
@@ -392,7 +374,7 @@ class _RootFlowState extends State<RootFlow> {
       },
       child: Stack(
         children: [
-          // Slide + fade between steps instead of an instant swap Ã¢â‚¬â€
+          // Slide + fade between steps instead of an instant swap —
           // each screen already returns its own Scaffold, so this just
           // transitions between them.
           AnimatedSwitcher(
@@ -423,7 +405,7 @@ class _RootFlowState extends State<RootFlow> {
   Widget _buildPayoutBanner(Map<String, dynamic> notif) {
     final isApproved = notif['type'] == 'payout_approved';
     final isCooldownReady = notif['type'] == 'cooldown_ready';
-    final title = (notif['title'] as String?) ?? (isApproved ? 'Ã¢Å“â€¦ Payout Approved!' : 'Ã¢ÂÅ’ Payout Update');
+    final title = (notif['title'] as String?) ?? (isApproved ? '✅ Payout Approved!' : '❌ Payout Update');
     final message = (notif['message'] as String?) ?? '';
     final color = isCooldownReady
         ? AppColors.gold
@@ -504,8 +486,6 @@ class _RootFlowState extends State<RootFlow> {
           }),
           onNotificationsTapped: () => setState(() => _step = _Step.notifications),
           onMiniGamesTapped: () => setState(() => _step = _Step.miniGames),
-          onMissionsTapped: () => setState(() => _step = _Step.missions),
-          onLeaderboardTapped: () => setState(() => _step = _Step.leaderboard),
         );
 
       case _Step.selectGame:
@@ -625,21 +605,8 @@ class _RootFlowState extends State<RootFlow> {
           onBack: () => setState(() => _step = _Step.wallet),
         );
 
-      case _Step.referral:
-        return ReferralScreen(onNavTap: _goToNavTab);
-
-      case _Step.leaderboard:
-        return LeaderboardScreen(
-          onBack: () => setState(() => _step = _Step.home),
-        );
-
       case _Step.notifications:
         return NotificationsScreen(
-          onBack: () => setState(() => _step = _Step.home),
-        );
-
-      case _Step.missions:
-        return MissionsScreen(
           onBack: () => setState(() => _step = _Step.home),
         );
 
@@ -650,12 +617,10 @@ class _RootFlowState extends State<RootFlow> {
             onExit: () => setState(() => _step = _Step.profile),
             onPayoutsTapped: () => setState(() => _step = _Step.adminPayouts),
             onGamesTapped: () => setState(() => _step = _Step.adminGames),
-            onMissionsTapped: () => setState(() => _step = _Step.adminMissions),
             onAntiBotTapped: () => setState(() => _step = _Step.adminAntiBot),
             onUsersTapped: () => setState(() => _step = _Step.adminUsers),
             onSettingsTapped: () => setState(() => _step = _Step.adminSettings),
             onDangerZoneTapped: () => setState(() => _step = _Step.adminDangerZone),
-            onReferralConfigsTapped: () => setState(() => _step = _Step.adminReferralConfigs),
             onWithdrawReqTapped: () => setState(() => _step = _Step.adminWithdrawReq),
           ),
         );
@@ -667,11 +632,6 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.adminGames:
         return AdminGamesScreen(
-          onBack: () => setState(() => _step = _Step.adminDashboard),
-        );
-
-      case _Step.adminMissions:
-        return AdminMissionsScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
         );
 
@@ -692,11 +652,6 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.adminDangerZone:
         return AdminDangerZoneScreen(
-          onBack: () => setState(() => _step = _Step.adminDashboard),
-        );
-
-      case _Step.adminReferralConfigs:
-        return AdminReferralConfigsScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
         );
 
