@@ -13,6 +13,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Load Ad IDs from ad_config.txt
+        run: |
+          APP_ID=$(grep "Enter Your App Id:" ad_config.txt | sed 's/Enter Your App Id: *//' | tr -d '\r' | xargs)
+          REWARDED_AD_ID=$(grep "Enter Your Rewarded Ad Id:" ad_config.txt | sed 's/Enter Your Rewarded Ad Id: *//' | tr -d '\r' | xargs)
+          if [ -z "$APP_ID" ] || [ -z "$REWARDED_AD_ID" ]; then
+            echo "FATAL: Could not read App ID or Rewarded Ad ID from ad_config.txt — check the file still has both lines in the expected format."
+            exit 1
+          fi
+          echo "Loaded App ID: $APP_ID"
+          echo "Loaded Rewarded Ad ID: $REWARDED_AD_ID"
+          echo "APP_ID=$APP_ID" >> $GITHUB_ENV
+          echo "REWARDED_AD_ID=$REWARDED_AD_ID" >> $GITHUB_ENV
+
+      - name: Apply Ad IDs into ads_config.dart
+        run: |
+          sed -i "s#static const String appId = '.*';#static const String appId = '${{ env.APP_ID }}';#" lib/services/ads_config.dart
+          sed -i "s#static const String rewardedAdUnitId = '.*';#static const String rewardedAdUnitId = '${{ env.REWARDED_AD_ID }}';#" lib/services/ads_config.dart
+          echo "=== ads_config.dart after patch ==="
+          cat lib/services/ads_config.dart
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.27.4'
@@ -33,7 +53,7 @@ jobs:
 
       - name: Install Google Mobile Ads (AdMob) App ID into manifest
         run: |
-          sed -i '/android:icon="@mipmap\/ic_launcher">/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4745209091204946~1801167791"/>' android/app/src/main/AndroidManifest.xml
+          sed -i "/android:icon=\"@mipmap\/ic_launcher\">/a\\        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"${{ env.APP_ID }}\"/>" android/app/src/main/AndroidManifest.xml
           cat android/app/src/main/AndroidManifest.xml
 
       - name: Bump minSdkVersion to 23 (required by google_mobile_ads)
