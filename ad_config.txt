@@ -1,2 +1,2 @@
-Enter Your App Id: ca-app-pub-4745209091204946~1801167791
-Enter Your Rewarded Ad Id: ca-app-pub-4745209091204946/8063323819
+Enter Your App Id: ca-app-pub-6221124120019522~1596091572
+Enter Your Rewarded Ad Id: ca-app-pub-6221124120019522/3443912755
