@@ -46,10 +46,29 @@ jobs:
           sed -i 's/"com.android.application" version "8.1.0"/"com.android.application" version "8.1.1"/' android/settings.gradle
           cat android/settings.gradle
 
-      - name: Bump Kotlin Gradle plugin to 2.1.0 (required by play-services-ads)
+      - name: Bump Kotlin Gradle plugin to 2.1.20 (required by play-services-ads and AppLovin)
         run: |
-          sed -i -E 's/(id "org\.jetbrains\.kotlin\.android" version ")[0-9.]+(")/\12.1.0\2/' android/settings.gradle
+          sed -i -E 's/(id "org\.jetbrains\.kotlin\.android" version ")[0-9.]+(")/\12.1.20\2/' android/settings.gradle
+          echo "=== settings.gradle after Kotlin bump ==="
           cat android/settings.gradle
+          if ! grep -q 'org.jetbrains.kotlin.android" version "2.1.20"' android/settings.gradle; then
+            echo "FATAL: Kotlin Gradle plugin version bump did not apply — check settings.gradle content above."
+            exit 1
+          fi
+
+      - name: Add AppLovin ProGuard/R8 keep rules
+        run: |
+          mkdir -p android/app
+          touch android/app/proguard-rules.pro
+          cat >> android/app/proguard-rules.pro << 'RULES'
+
+          # AppLovin's bundled Open Measurement (OMID) attestation library
+          # references Amazon's optional Privacy Pass classes, which are
+          # not bundled dependencies. Not a real error — R8 is told to
+          # ignore them rather than fail the build.
+          -dontwarn com.amazon.privacypass.**
+          RULES
+          cat android/app/proguard-rules.pro
 
       - name: Install Google Mobile Ads (AdMob) App ID into manifest
         run: |
