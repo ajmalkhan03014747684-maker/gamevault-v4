@@ -33,6 +33,7 @@ import 'screens/admin/admin_games_screen.dart';
 import 'screens/admin/admin_antibot_screen.dart';
 import 'screens/admin/admin_users_screen.dart';
 import 'screens/admin/admin_withdraw_req_screen.dart';
+import 'screens/admin/admin_ads_network_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/security_screen.dart';
 import 'screens/profile/language_screen.dart';
@@ -103,6 +104,7 @@ enum _Step {
   adminSettings,
   adminDangerZone,
   adminWithdrawReq,
+  adminAdsNetwork,
   editProfile,
   security,
   language,
@@ -120,23 +122,11 @@ class _RootFlowState extends State<RootFlow> {
   bool _pendingCycleCompleted = false;
   double _pendingEarned = 0;
 
-  // ---------------------------------------------------------------
-  // PAYOUT NOTIFICATION BANNER
-  // Polls for a new (unread) payout_approved / payout_rejected
-  // notification while the app is open, shows a banner for 10
-  // seconds, then auto-dismisses. The notification itself is NOT
-  // marked read by the banner — it stays in the Notifications screen
-  // permanently until the user actually opens it there.
-  // ---------------------------------------------------------------
   Timer? _pollTimer;
   Timer? _bannerAutoHideTimer;
   Map<String, dynamic>? _activeBanner;
   final Set<String> _bannerShownIds = {};
 
-  // Ad-cooldown-ended detector — separate from the small display
-  // badges (which just read storage independently); this one is the
-  // single source that fires the one-time "ad ready" banner and
-  // clears the stored deadline once it passes.
   Timer? _cooldownTicker;
   bool _cooldownEndBannerFired = false;
 
@@ -146,26 +136,10 @@ class _RootFlowState extends State<RootFlow> {
   void initState() {
     super.initState();
     _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) => _pollForPayoutNotification());
-    // Also check shortly after the app opens, in case something was
-    // already waiting from before this session.
     Future.delayed(const Duration(seconds: 3), _pollForPayoutNotification);
-
     _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (_) => _tickCooldown());
-
-    // Any CooldownBadge, anywhere in the app, pings this on tap —
-    // listening once here means every screen gets a clickable badge
-    // for free with zero constructor changes.
     CooldownNav.tapSignal.addListener(_onCooldownBadgeTapped);
-
-    // Background music starts once, on by default, and keeps playing
-    // across every screen for the rest of the session (it lives here
-    // in RootFlow, which never gets disposed while the app is open).
     SoundService.instance.startBackgroundMusic();
-
-    // Password recovery: supabase_flutter automatically detects when
-    // the app was opened via the reset-password deep link (as long as
-    // the Android manifest's intent-filter matches) and fires this
-    // event — no manual link parsing needed on our end.
     _authSub = supabase.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.passwordRecovery) {
         if (!mounted) return;
@@ -186,9 +160,6 @@ class _RootFlowState extends State<RootFlow> {
 
   void _onCooldownBadgeTapped() {
     if (!mounted) return;
-    // Don't jump to the Cooldown screen from splash/login, and don't
-    // bother if there's no active cooldown after all (e.g. a stale
-    // tap right as it expired).
     if (_step == _Step.splash || _step == _Step.login) return;
     setState(() => _step = _Step.cooldown);
   }
@@ -199,16 +170,14 @@ class _RootFlowState extends State<RootFlow> {
     if (!mounted) return;
 
     if (end == null) {
-      // No active cooldown — reset the fired-flag so the NEXT
-      // cooldown (started by watching another ad) gets its own banner.
       _cooldownEndBannerFired = false;
       return;
     }
 
     final secondsLeft = end.difference(DateTime.now()).inSeconds;
-    if (secondsLeft > 0) return; // still counting down, nothing to do
+    if (secondsLeft > 0) return;
 
-    if (_cooldownEndBannerFired) return; // already announced this one
+    if (_cooldownEndBannerFired) return;
     _cooldownEndBannerFired = true;
 
     await CooldownStorage.clearCooldown();
@@ -224,7 +193,6 @@ class _RootFlowState extends State<RootFlow> {
 
   Future<void> _pollForPayoutNotification() async {
     if (!mounted) return;
-    // Don't poll before the user is logged in.
     if (_step == _Step.splash || _step == _Step.login) return;
 
     final notif = await GameDataService.instance.getLatestUnreadPayoutNotification();
@@ -269,10 +237,6 @@ class _RootFlowState extends State<RootFlow> {
     }
   }
 
-  /// Called when the user taps "WATCH REWARDED AD" on Game Details.
-  /// Restored: routes to the full-screen Cooldown screen when a
-  /// cooldown is still active, same as before. The small CooldownBadge
-  /// in every header still shows the countdown everywhere else.
   Future<void> _handleWatchAdRequested(int currentAds, int adsRequired, double rewardAmount) async {
     final activeCooldown = await CooldownStorage.getCooldownEnd();
     if (activeCooldown != null) {
@@ -290,10 +254,6 @@ class _RootFlowState extends State<RootFlow> {
     });
   }
 
-  /// Shows a transient top banner that auto-dismisses after [duration]
-  /// — used for both the cooldown-active tap warning and the
-  /// cooldown-just-ended notice. Nothing here is written to the
-  /// database; it only ever lives in memory for this session.
   void _showEphemeralBanner({
     required String type,
     required String title,
@@ -310,8 +270,6 @@ class _RootFlowState extends State<RootFlow> {
     });
   }
 
-  /// Where the hardware/gesture back button should send the user for
-  /// each step.
   void _goBack() {
     switch (_step) {
       case _Step.selectGame:
@@ -342,6 +300,7 @@ class _RootFlowState extends State<RootFlow> {
       case _Step.adminSettings:
       case _Step.adminDangerZone:
       case _Step.adminWithdrawReq:
+      case _Step.adminAdsNetwork:
         setState(() => _step = _Step.adminDashboard);
         break;
       case _Step.editProfile:
@@ -374,9 +333,6 @@ class _RootFlowState extends State<RootFlow> {
       },
       child: Stack(
         children: [
-          // Slide + fade between steps instead of an instant swap —
-          // each screen already returns its own Scaffold, so this just
-          // transitions between them.
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 320),
             switchInCurve: AppMotion.smooth,
@@ -536,11 +492,6 @@ class _RootFlowState extends State<RootFlow> {
             await CooldownStorage.setCooldownEnd(end);
             _cooldownEndBannerFired = false;
             if (!mounted) return;
-            // Restored: routes to the full-screen Cooldown screen,
-            // same as before. If the user leaves it early (Mini Games
-            // / Go to Home), the small CooldownBadge + the global
-            // ticker in _tickCooldown still track it and fire the
-            // "ready" banner the moment it ends.
             setState(() => _step = _Step.cooldown);
           },
         );
@@ -622,6 +573,7 @@ class _RootFlowState extends State<RootFlow> {
             onSettingsTapped: () => setState(() => _step = _Step.adminSettings),
             onDangerZoneTapped: () => setState(() => _step = _Step.adminDangerZone),
             onWithdrawReqTapped: () => setState(() => _step = _Step.adminWithdrawReq),
+            onAdsNetworkTapped: () => setState(() => _step = _Step.adminAdsNetwork),
           ),
         );
 
@@ -657,6 +609,11 @@ class _RootFlowState extends State<RootFlow> {
 
       case _Step.adminWithdrawReq:
         return AdminWithdrawReqScreen(
+          onBack: () => setState(() => _step = _Step.adminDashboard),
+        );
+
+      case _Step.adminAdsNetwork:
+        return AdminAdsNetworkScreen(
           onBack: () => setState(() => _step = _Step.adminDashboard),
         );
 
