@@ -4,12 +4,12 @@ import '../../widgets/glass_card.dart';
 import '../../widgets/gradient_button.dart';
 import '../../services/admin_service.dart';
 
-/// Admin â€” Payout Requests
+/// Admin — Payout Requests
 ///
 /// FIX: previously only loaded PENDING requests and showed just an
 /// amount + game id. Now shows the full history (pending, approved,
-/// rejected) with the actual username, game name, currency, and â€” for
-/// rejected ones â€” the reason the admin gave, matching the reference
+/// rejected) with the actual username, game name, currency, and — for
+/// rejected ones — the reason the admin gave, matching the reference
 /// app's admin payouts panel.
 class AdminPayoutsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -22,6 +22,8 @@ class AdminPayoutsScreen extends StatefulWidget {
 class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
   List<Map<String, dynamic>> _requests = [];
   String _filter = 'Pending';
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
   bool _loading = true;
   String? _error;
   final Set<String> _processingIds = {};
@@ -30,6 +32,15 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
   void initState() {
     super.initState();
     _load();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim().toLowerCase());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -59,7 +70,7 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
       await AdminService.instance.approvePayout(id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('âœ… Approved & notification sent!')),
+        const SnackBar(content: Text('✅ Approved & notification sent!')),
       );
       await _load();
     } on AdminException catch (e) {
@@ -135,7 +146,7 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
       await AdminService.instance.rejectPayout(id, reasonController.text.trim());
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('âŒ Rejected â€” currency refunded & notification sent!')),
+        const SnackBar(content: Text('❌ Rejected — currency refunded & notification sent!')),
       );
       await _load();
     } on AdminException catch (e) {
@@ -148,9 +159,22 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _filter == 'All'
+    final statusFiltered = _filter == 'All'
         ? _requests
         : _requests.where((r) => (r['status'] as String?)?.toLowerCase() == _filter.toLowerCase()).toList();
+
+    final filtered = _searchQuery.isEmpty
+        ? statusFiltered
+        : statusFiltered.where((r) {
+            final gameUid = ((r['game_uid'] as String?) ?? '').toLowerCase();
+            final gameUsername = ((r['game_username'] as String?) ?? '').toLowerCase();
+            final username = ((r['user']?['username'] as String?) ?? '').toLowerCase();
+            final email = ((r['user']?['email'] as String?) ?? '').toLowerCase();
+            return gameUid.contains(_searchQuery) ||
+                gameUsername.contains(_searchQuery) ||
+                username.contains(_searchQuery) ||
+                email.contains(_searchQuery);
+          }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -194,6 +218,29 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: TextField(
+                controller: _searchController,
+                style: AppText.body(size: 14),
+                decoration: InputDecoration(
+                  hintText: 'Search by UID or username',
+                  hintStyle: AppText.caption(),
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppColors.muted, size: 20),
+                  suffixIcon: _searchQuery.isEmpty
+                      ? null
+                      : GestureDetector(
+                          onTap: () => _searchController.clear(),
+                          child: const Icon(Icons.close_rounded, color: AppColors.muted, size: 18),
+                        ),
+                  filled: true,
+                  fillColor: AppColors.surface2,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -203,7 +250,12 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : filtered.isEmpty
-                      ? Center(child: Text('No $_filter payout requests', style: AppText.caption()))
+                      ? Center(
+                          child: Text(
+                            _searchQuery.isEmpty ? 'No $_filter payout requests' : 'No matches for "$_searchQuery"',
+                            style: AppText.caption(),
+                          ),
+                        )
                       : RefreshIndicator(
                           onRefresh: _load,
                           child: ListView.separated(
@@ -216,10 +268,10 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
                               final status = (r['status'] as String?) ?? 'pending';
                               final amount = (r['amount'] as num?)?.toDouble() ?? 0.0;
                               final username = (r['user']?['username'] as String?) ?? (r['user']?['email'] as String?) ?? 'Unknown';
-                              final gameName = (r['game']?['name'] as String?) ?? 'â€”';
+                              final gameName = (r['game']?['name'] as String?) ?? '—';
                               final currency = (r['game']?['currency_name'] as String?) ?? '';
-                              final gameUsername = (r['game_username'] as String?) ?? 'â€”';
-                              final gameUid = (r['game_uid'] as String?) ?? 'â€”';
+                              final gameUsername = (r['game_username'] as String?) ?? '—';
+                              final gameUid = (r['game_uid'] as String?) ?? '—';
                               final rejectionReason = (r['rejection_reason'] as String?) ?? '';
                               final note = (r['note'] as String?) ?? '';
                               final isProcessing = _processingIds.contains(id);
@@ -249,16 +301,16 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    Text('ðŸ’° $amount $currency', style: AppText.body(size: 13, weight: FontWeight.w600, color: AppColors.gold)),
+                                    Text('💰 $amount $currency', style: AppText.body(size: 13, weight: FontWeight.w600, color: AppColors.gold)),
                                     const SizedBox(height: 3),
-                                    Text('ðŸŽ® Game: $gameName', style: AppText.caption(size: 12)),
+                                    Text('🎮 Game: $gameName', style: AppText.caption(size: 12)),
                                     const SizedBox(height: 3),
-                                    Text('ðŸ‘¤ Username: $gameUsername', style: AppText.caption(size: 12)),
+                                    Text('👤 Username: $gameUsername', style: AppText.caption(size: 12)),
                                     const SizedBox(height: 3),
-                                    Text('ðŸ”‘ UID: $gameUid', style: AppText.caption(size: 12)),
+                                    Text('🔑 UID: $gameUid', style: AppText.caption(size: 12)),
                                     if (note.isNotEmpty) ...[
                                       const SizedBox(height: 3),
-                                      Text('ðŸ“ $note', style: AppText.caption(size: 11)),
+                                      Text('📝 $note', style: AppText.caption(size: 11)),
                                     ],
                                     if (status == 'rejected' && rejectionReason.isNotEmpty) ...[
                                       const SizedBox(height: 10),
@@ -270,7 +322,7 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
                                           border: Border.all(color: AppColors.dangerRed.withOpacity(0.25)),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        child: Text('ðŸ“ Reason: $rejectionReason', style: AppText.caption(size: 12, color: AppColors.dangerRed)),
+                                        child: Text('📝 Reason: $rejectionReason', style: AppText.caption(size: 12, color: AppColors.dangerRed)),
                                       ),
                                     ],
                                     if (status == 'pending') ...[
@@ -279,7 +331,7 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
                                         children: [
                                           Expanded(
                                             child: OutlineButton(
-                                              label: 'âœ— Reject',
+                                              label: '✗ Reject',
                                               onPressed: isProcessing ? null : () => _reject(id),
                                               height: 42,
                                             ),
@@ -287,7 +339,7 @@ class _AdminPayoutsScreenState extends State<AdminPayoutsScreen> {
                                           const SizedBox(width: 10),
                                           Expanded(
                                             child: GradientButton(
-                                              label: 'âœ“ Approve & Notify',
+                                              label: '✓ Approve & Notify',
                                               gradient: AppGradients.successGlow,
                                               height: 42,
                                               loading: isProcessing,
