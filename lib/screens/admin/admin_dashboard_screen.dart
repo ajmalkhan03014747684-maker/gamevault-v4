@@ -12,6 +12,7 @@ class AdminDashboardScreen extends StatefulWidget {
   final VoidCallback onSettingsTapped;
   final VoidCallback onDangerZoneTapped;
   final VoidCallback onWithdrawReqTapped;
+  final VoidCallback onAdsNetworkTapped;
 
   const AdminDashboardScreen({
     super.key,
@@ -23,6 +24,7 @@ class AdminDashboardScreen extends StatefulWidget {
     required this.onSettingsTapped,
     required this.onDangerZoneTapped,
     required this.onWithdrawReqTapped,
+    required this.onAdsNetworkTapped,
   });
 
   @override
@@ -119,6 +121,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               _AdminMenuRow(icon: Icons.shield_rounded, label: 'Anti-Bot / Flagged Users', onTap: widget.onAntiBotTapped),
               _AdminMenuRow(icon: Icons.person_off_rounded, label: 'Manage Users / Ban', onTap: widget.onUsersTapped),
               _AdminMenuRow(icon: Icons.settings_rounded, label: 'App Settings', onTap: widget.onSettingsTapped),
+              _AdminMenuRow(icon: Icons.ads_click_rounded, label: 'Ad Networks', onTap: widget.onAdsNetworkTapped),
               const SizedBox(height: 8),
               _AdminMenuRow(
                 icon: Icons.delete_forever_rounded,
