@@ -20,9 +20,14 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
   final _applovinAdUnitCtrl = TextEditingController();
   bool _applovinEnabled = false;
 
+  final _unityGameIdCtrl = TextEditingController();
+  final _unityPlacementCtrl = TextEditingController();
+  bool _unityEnabled = false;
+
   bool _loading = true;
   bool _savingAdmob = false;
   bool _savingApplovin = false;
+  bool _savingUnity = false;
   String? _message;
 
   @override
@@ -37,6 +42,8 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
     _admobAdUnitCtrl.dispose();
     _applovinKeyCtrl.dispose();
     _applovinAdUnitCtrl.dispose();
+    _unityGameIdCtrl.dispose();
+    _unityPlacementCtrl.dispose();
     super.dispose();
   }
 
@@ -44,6 +51,7 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
     final configs = await AdsNetworkConfigService.instance.loadConfigs();
     final admob = configs['admob'];
     final applovin = configs['applovin'];
+    final unity = configs['unity'];
     if (admob != null) {
       _admobAppIdCtrl.text = admob.appId;
       _admobAdUnitCtrl.text = admob.adUnitId;
@@ -53,6 +61,11 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
       _applovinKeyCtrl.text = applovin.appId;
       _applovinAdUnitCtrl.text = applovin.adUnitId;
       _applovinEnabled = applovin.isEnabled;
+    }
+    if (unity != null) {
+      _unityGameIdCtrl.text = unity.appId;
+      _unityPlacementCtrl.text = unity.adUnitId;
+      _unityEnabled = unity.isEnabled;
     }
     if (!mounted) return;
     setState(() => _loading = false);
@@ -102,6 +115,28 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
     }
   }
 
+  Future<void> _saveUnity() async {
+    setState(() {
+      _savingUnity = true;
+      _message = null;
+    });
+    try {
+      await AdsNetworkConfigService.instance.saveConfig(
+        networkName: 'unity',
+        appId: _unityGameIdCtrl.text.trim(),
+        adUnitId: _unityPlacementCtrl.text.trim(),
+        isEnabled: _unityEnabled,
+      );
+      if (!mounted) return;
+      setState(() => _message = 'Unity Ads settings saved.');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _message = 'Failed to save Unity Ads settings.');
+    } finally {
+      if (mounted) setState(() => _savingUnity = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,7 +168,7 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
                         child: Text(_message!, style: AppText.caption(size: 12, color: AppColors.successGreen)),
                       ),
                     Text(
-                      'AdMob is always tried first. If it has no ad available, AppLovin is tried next automatically — no other setup needed beyond entering the IDs below.',
+                      'AdMob is tried first, then AppLovin, then Unity Ads â€” automatically, in that order. No other setup needed beyond entering the IDs below.',
                       style: AppText.caption(size: 12),
                     ),
                     const SizedBox(height: 16),
@@ -197,6 +232,39 @@ class _AdminAdsNetworkScreenState extends State<AdminAdsNetworkScreen> {
                               child: _savingApplovin
                                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                   : const Text('Save AppLovin Settings'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    GlassCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text('Unity Ads', style: AppText.body(size: 16, weight: FontWeight.w700)),
+                              const Spacer(),
+                              Switch(
+                                value: _unityEnabled,
+                                onChanged: (v) => setState(() => _unityEnabled = v),
+                                activeColor: AppColors.primaryPurple,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _labeledField('Enter Your Unity Game Id', _unityGameIdCtrl),
+                          const SizedBox(height: 10),
+                          _labeledField('Enter Your Unity Placement Id', _unityPlacementCtrl),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _savingUnity ? null : _saveUnity,
+                              child: _savingUnity
+                                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Text('Save Unity Ads Settings'),
                             ),
                           ),
                         ],
